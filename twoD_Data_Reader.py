@@ -31,7 +31,8 @@ for row in df.values:
     datPt.rho_st_ch = row[7]
     # get the test section data from the pitot tube measured wrt p_atm
     datPt.p_total_inf = row[104] + datPt.p_atm
-    datPt.p_static_inf = row[117] + datPt.p_atm
+    # INVALID DATAPOINT datPt.p_static_inf = row[117] + datPt.p_atm
+
     # Following data is given as pressure difference
     datPt.airfoil_top_p_taps = row[8:33:] + datPt.p_atm # P001-P025
     datPt.airfoil_bottom_p_taps = row[33:57:] + datPt.p_atm # P026-P049
@@ -40,12 +41,6 @@ for row in df.values:
     datPt.init() # initialize datapoint by computing same needed values
     datapoints.append(datPt)
 
-# for i in np.arange(0, 0.225, 0.001):
-#     print(datapoints[10].V_inf,"  ",datapoints[10].V_after_wing(i)," diff ",datapoints[10].V_inf-datapoints[10].V_after_wing(i))
-# for i in datapoints:
-#     print(i.get_D())
-#print(datapoints[10].get_D())
-# datapoints[10].plot_pressures()
-print(datapoints[3].aoa)
-datapoints[3].plot_Cp()
-#print(datapoints[0].rake_static_p_taps)
+
+for i in datapoints:
+    i.get_D()
