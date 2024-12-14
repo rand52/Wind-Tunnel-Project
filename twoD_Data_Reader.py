@@ -1,36 +1,51 @@
+import numpy as np
+import pandas as pd
+import scipy as sc
+
 import twoD_Datapoint as dp
 
-# datafile
+# txt datafile with test results
 datafile = "raw_2D.txt"
-comment_indicator = "#" # line indicator NOT read
-header = 2 # header NOT read size
+comment_indicator = "#"  # line indicator NOT read
+header = 2  # header NOT read size
+
+# Read the file into a Pandas DataFrame
+df = pd.read_csv(
+    datafile,
+    sep=r"\s+", # delimiter = whitespaces
+    comment=comment_indicator,  # line indicator NOT read
+    skiprows=header,  # don't read header lines
+    header=None  # use int headers for columns and rows
+)
 
 # list with the datapoints
 datapoints = []
 
-with open(datafile, 'r') as file:
-    l=0
-    for line in file:
-        l+=1
-        if l<=header: continue # skip header
-        line = line.strip()
-        if not line.startswith(comment_indicator): # skip commented lines
-            datPt = dp.twoD_DP() # create new datapoint
-            e=0
-            for entry in line.split():
-                e+=1
-                if e>2: entry_val=float(entry)
-                # save the datapoint entries in the correct fields
-                match e:
-                    case 3 : datPt.aoa=entry_val
-                    case 4 : datPt.del_pb=entry_val
-                    case 5 : datPt.p_atm=entry_val*100 # it's given in kPa
-                    case 6 : datPt.temp_C=entry_val
-                    case 8 : datPt.rho=entry_val
-                    case 105: datPt.p_stat=entry_val # P097
-                    case x if (x >= 9 and x <= 33): datPt.airfoil_top_p_taps.append(entry_val) # P001-P025
-                    case x if (x >= 34 and x <= 57): datPt.airfoil_bottom_p_taps.append(entry_val) # P026-P049
-                    case x if (x >= 58 and x <= 104): datPt.rake_total_p_taps.append(entry_val) # P050-P096
-                    case x if (x >= 106 and x <= 117): datPt.rake_total_p_taps.append(entry_val) # P098-P109
-            datapoints.append(datPt)
+for row in df.values:
+    datPt = dp.twoD_DP()  # create new datapoint
+    # save data to the datapoint
+    datPt.aoa = row[2]
+    datPt.del_pb = row[3]
+    datPt.p_atm = row[4] * 100  # it's given in kPa
+    datPt.temp_C = row[5]
+    datPt.rho_st_ch = row[7]
+    # get the test section data from the pitot tube measured wrt p_atm
+    datPt.p_total_inf = row[104] + datPt.p_atm
+    # INVALID DATAPOINT datPt.p_static_inf = row[117] + datPt.p_atm
 
+    # Following data is given as pressure difference
+    datPt.airfoil_top_p_taps = row[8:33:] + datPt.p_atm # P001-P025
+    datPt.airfoil_bottom_p_taps = row[33:57:] + datPt.p_atm # P026-P049
+    datPt.rake_total_p_taps = row[57:104:] + datPt.p_atm # P050-P096
+    datPt.rake_static_p_taps = row[105:117:] + datPt.p_atm # P098-P109
+    datPt.init() # initialize datapoint by computing same needed values
+    datapoints.append(datPt)
+
+# print(datapoints[0].rake_total_p_taps)
+# for i in datapoints[0].rake_pos_taps_total_p:
+#     print(datapoints[0].rake_total_p_func(i))
+#dp.plot_CL_a_curve(datapoints)
+for i in datapoints:
+    i.plot_Velocity_Deficit()
+    i.plot_static_pressure_Deficit()
+    #print(i.get_D())
