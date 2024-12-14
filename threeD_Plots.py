@@ -24,7 +24,6 @@ CDi = CL**2 / (math.pi * 5) * (1+0.0619)
 
 Slope3D = (CL[14]-CL[0]) * (180 / math.pi) / (14)
 
-print(CDi[11])
 print(Slope3D)
 
 # Plot Fy vs Alpha
