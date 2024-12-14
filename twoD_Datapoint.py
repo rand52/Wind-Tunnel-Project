@@ -62,27 +62,29 @@ class twoD_DP:
         self.airfoil_bottom_taps_cps = (self.airfoil_bottom_p_taps - self.p_inf) / self.q_inf
 
         # interpolate the rake pressures with wake position
-        self.rake_static_p_func = sc.interpolate.interp1d(
+        self.rake_static_p_func = sc.interpolate.InterpolatedUnivariateSpline(
             self.rake_pos_taps_static_p,
             self.rake_static_p_taps,
-            kind='linear',
-            fill_value="extrapolate"
+            k=2,  # Quadratic interpolation (degree 2)
+            ext=3  # Constant extrapolation at the boundaries
+            # VERY IMPORTANT for the static p to keep end values when
+            # extrapolating otherwise polynomial fit gies big deviation
         )
-        self.rake_total_p_func = sc.interpolate.interp1d(
+        self.rake_total_p_func = sc.interpolate.InterpolatedUnivariateSpline(
             self.rake_pos_taps_total_p,
             self.rake_total_p_taps,
-            kind='linear',
-            fill_value="extrapolate"
+            k=2,  # Quadratic interpolation (degree 2)
+            ext=3  # Constant extrapolation at the boundaries
         )
         self.airfoil_top_cps_func = sc.interpolate.interp1d(
+            self.airfoil_pos_top_taps/100,  # normalized coordinates from 0-1 instead of 0-100%
             self.airfoil_top_taps_cps,
-            self.airfoil_pos_top_taps/100, #normalized coordinates from 0-1 instead of 0-100%
             kind='linear',
             fill_value="extrapolate"
         )
         self.airfoil_bottom_cps_func = sc.interpolate.interp1d(
+            self.airfoil_pos_bottom_taps/100,  # normalized coordinates from 0-1 instead of 0-100%
             self.airfoil_bottom_taps_cps,
-            self.airfoil_pos_bottom_taps/100, #normalized coordinates from 0-1 instead of 0-100%
             kind='linear',
             fill_value="extrapolate"
         )
@@ -137,7 +139,9 @@ class twoD_DP:
         return self.get_D() / (self.q_inf * S)
 
     def get_Cn(self):
-        return 0
+        def CP_top_and_bottom_dif(x):
+            return self.airfoil_bottom_cps_func(x)-self.airfoil_top_cps_func(x)
+        return sc.integrate.quad(CP_top_and_bottom_dif, 0, 1,limit=int_sub_div_lim)[0]
 
     def plot_pressures(self):
         plt.figure(figsize=(10, 6))
@@ -247,8 +251,8 @@ class twoD_DP:
 
     def plot_Velocity_Deficit(self) :
         V_deficit = []
-        for i in range(len(self.rake_pos_taps_total_p)):
-            q_inf_at_rake = self.rake_total_p_taps[i] - self.rake_static_p_func(self.rake_pos_taps_total_p[i])
+        for y in self.rake_pos_taps_total_p:
+            q_inf_at_rake = self.rake_total_p_func(y) - self.rake_static_p_func(y)
             V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / self.rho)
             V_deficit.append(V_inf_at_rake/self.V_inf)
 
@@ -261,7 +265,7 @@ class twoD_DP:
             marker='s',
             markersize=3
         )
-        plt.title("velocity deficit behind airfoil trailing edge")
+        plt.title(f"Velocity deficit behind airfoil trailing edge at AOA={self.aoa} deg")
         plt.xlabel("Position along the rake [m]")
         plt.ylabel("Velocity deficit [%]")
         # Make a grid in the background for better readability
@@ -272,8 +276,8 @@ class twoD_DP:
 
     def plot_static_pressure_Deficit(self):
         p_static_deficit = []
-        for i in range(len(self.rake_pos_taps_total_p)):
-            p_static_deficit.append(self.p_inf - self.rake_static_p_func(self.rake_pos_taps_total_p[i]))
+        for y in self.rake_pos_taps_total_p:
+            p_static_deficit.append(self.p_inf - self.rake_static_p_func(y))
 
         # plot the velocity deficit
         plt.figure(figsize=(10, 6))
@@ -284,7 +288,7 @@ class twoD_DP:
             marker='s',
             markersize=3
         )
-        plt.title("static pressure deficit behind airfoil trailing edge")
+        plt.title(f"Static pressure deficit behind airfoil trailing edge at AOA={self.aoa}deg")
         plt.xlabel("Position along the rake [m]")
         plt.ylabel("Pressure deficit [Pa]")
         # Make a grid in the background for better readability
@@ -292,3 +296,60 @@ class twoD_DP:
         plt.grid(True, linestyle='--', alpha=0.6)
         # Display
         plt.show()
+
+
+#### Plotting methods for multiple datapoints ####
+def plot_CL_a_curve(datapoints:list[twoD_DP]):
+    # get the data in arrays
+    AOA_s = []
+    Cl_s = []
+    Re_num_s = []
+    for datPt in datapoints:
+        AOA_s.append(datPt.aoa)
+        Cl_s.append(datPt.get_Cn())
+        Re_num_s.append(datPt.get_Re_inf())
+    # plot the Cl-a curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(
+        AOA_s,
+        Cl_s,
+        color="blue",
+        marker='.',
+        markersize=8
+    )
+    # Display the maximum CL in the top-right corner
+    plt.text(
+        0.98, 0.20,
+        f"Cl at stall: {max(Cl_s):.2f}",
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        horizontalalignment='right'
+    )
+    # Display the AOA at the maximum CL
+    plt.text(
+        0.98, 0.15,
+        f"AOA at stall: {AOA_s[Cl_s.index(max(Cl_s))]:.2f}",
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        horizontalalignment='right'
+    )
+    # Display the average reynolds number in the top-right corner
+    Re_avg = sum(Re_num_s) / len(Re_num_s)
+    plt.text(
+        0.98, 0.10,
+        f"Reynolds Number: {Re_avg:.2e}",  # format in scientific notation
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        horizontalalignment='right'
+    )
+    # Labeling the plot
+    plt.title(f"Lift coefficient Cl vs AOA")
+    plt.xlabel("AOA [deg]")
+    plt.ylabel("Cl [-]")
+    # Make a grid in the background for better readability
+    plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for AOA = 0deg
+    plt.grid(True, linestyle='--', alpha=0.6)
+    # Display
+    plt.show()
+
+
