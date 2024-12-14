@@ -80,8 +80,8 @@ class twoD_DP:
 
     def get_q_inf(self):
         # don't use static pressure reading but best fit polynomial as it's more accurate
-        # return 0.211804 + 1.928442 * self.del_pb + (1.879374 * 10 ** -4) * (self.del_pb ** 2)
-        return self.p_total_inf-self.p_static_inf
+        return 0.211804 + 1.928442 * self.del_pb + (1.879374 * 10 ** -4) * (self.del_pb ** 2)
+        #return self.p_total_inf-self.p_static_inf
 
     def get_p_inf(self):
         # don't use static pressure reading but best fit polynomial as it's more accurate
@@ -166,10 +166,35 @@ class twoD_DP:
 
     def plot_Velocity_Deficit(self) :
         V_deficit = []
-        # for i in range(len(self.rake_pos_taps_total_p)):
-        #     q_inf_at_rake = self.rake_total_p_taps[i] - self.rake_static_p(self.rake_pos_taps_total_p[i])
-        #     V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / self.rho)
-        #     V_deficit.append(V_inf_at_rake/self.V_inf)
+        for i in range(len(self.rake_pos_taps_total_p)):
+            q_inf_at_rake = self.rake_total_p_taps[i] - self.rake_static_p(self.rake_pos_taps_total_p[i])
+            V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / self.rho)
+            V_deficit.append(V_inf_at_rake/self.V_inf)
+
+        # plot the velocity deficit
+        plt.figure(figsize=(10, 6))
+        plt.plot(
+            self.rake_pos_taps_total_p,
+            V_deficit,
+            color="blue",
+            marker='s',
+            markersize=3
+        )
+        plt.title("velocity deficit behind airfoil trailing edge")
+        plt.xlabel("Position along the rake")
+        plt.ylabel("Velocity deficit [%]")
+        # Make a grid in the background for better readability
+        plt.axhline(1, color='black', linewidth=0.8, linestyle='--')  # Reference line for Cp = 0
+        plt.grid(True, linestyle='--', alpha=0.6)
+        # Display
+        plt.show()
+
+    def plot_static_pressure_Deficit(self):
+        V_deficit = []
+        for i in range(len(self.rake_pos_taps_total_p)):
+            q_inf_at_rake = self.rake_total_p_taps[i] - self.rake_static_p(self.rake_pos_taps_total_p[i])
+            V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / self.rho)
+            V_deficit.append(V_inf_at_rake/self.V_inf)
         range = np.arange(0,max(self.rake_pos_taps_total_p),0.0005)
         for i in range:
             q_inf_at_rake = self.rake_total_p(i)-self.rake_static_p(i)

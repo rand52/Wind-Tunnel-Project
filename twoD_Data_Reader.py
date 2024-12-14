@@ -46,5 +46,6 @@ for row in df.values:
 #     print(i.get_D())
 #print(datapoints[10].get_D())
 # datapoints[10].plot_pressures()
-datapoints[0].plot_Cp()
+print(datapoints[3].aoa)
+datapoints[3].plot_Cp()
 #print(datapoints[0].rake_static_p_taps)
