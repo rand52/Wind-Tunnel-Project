@@ -19,7 +19,9 @@ class twoD_DP:
         self.aoa: float = None  # AOA
         self.temp_C: float = None  # Temp in C
         self.del_pb: float = None  # Pressure dif in stag ch and contraction
-        self.p_tot_inf: float = None  # Total barometric pressure in stag ch
+        self.p_atm: float = None  # Atmospheric barometric pressure used as a datum
+        self.p_total_inf = None # Total pressure in test section from pitot tube
+        self.p_static_inf = None # Static pressure in test section from pitot tube
         self.rho_st_ch: float = None  # measured rho is stag ch
 
         self.airfoil_top_p_taps: np.ndarray = None # P001-P025
@@ -30,12 +32,14 @@ class twoD_DP:
         # P110-P113 are for pitot tubes total pressure and not connected
 
         # frequently used values and others needed for the class
-        self.rake_static_p: sc.interpolate.interp1d = None
-        self.rake_total_p: sc.interpolate.interp1d = None
         self.V_inf: float = None
         self.q_inf: float = None
         self.p_inf: float = None
         self.rho: float = None
+        self.rake_static_p: sc.interpolate.interp1d = None
+        self.rake_total_p: sc.interpolate.interp1d = None
+        self.airfoil_top_cps: np.ndarray = None
+        self.airfoil_bottom_cps: np.ndarray = None
 
     def init(self):
         """Computes and saves frequently used values for the datapoint that are needed for the class to properly
@@ -43,8 +47,11 @@ class twoD_DP:
         # compute frequently used values, order matters
         self.rho = self.get_rho()
         self.q_inf = self.get_q_inf()
-        self.p_inf = self.get_p_inf()
+        self.p_inf = self.p_static_inf
         self.V_inf = self.get_V_inf()
+
+        self.airfoil_top_cps = (self.airfoil_top_p_taps - self.p_inf) / self.q_inf
+        self.airfoil_bottom_cps = (self.airfoil_bottom_p_taps - self.p_inf) / self.q_inf
 
         # interpolate the rake pressures with wake position
         self.rake_static_p = sc.interpolate.interp1d(
@@ -63,7 +70,7 @@ class twoD_DP:
     def get_rho(self):
         R = 287.052874  # dry air
         T = self.temp_C + 273.15  # K
-        return self.p_tot_inf / (R * T)
+        return self.p_static_inf / (R * T)
 
     def get_mu(self):
         mu0 = 1.716 * 10 ** -5
@@ -72,10 +79,13 @@ class twoD_DP:
         return mu0 * ((T / 273.15) ** (3. / 2)) * ((273.15 + S) / (T + S))
 
     def get_q_inf(self):
+        # don't use static pressure reading but best fit polynomial as it's more accurate
         return 0.211804 + 1.928442 * self.del_pb + (1.879374 * 10 ** -4) * (self.del_pb ** 2)
+        #return self.p_total_inf-self.p_static_inf
 
     def get_p_inf(self):
-        return self.p_tot_inf - self.q_inf
+        # don't use static pressure reading but best fit polynomial as it's more accurate
+        return self.p_total_inf - self.q_inf
 
     def get_V_inf(self):
         return mt.sqrt((2 * self.q_inf) / self.rho)
@@ -85,10 +95,6 @@ class twoD_DP:
 
     def V_after_wing(self, y):
         q_inf = self.rake_total_p(y) - self.rake_static_p(y)
-        # print(self.rake_total_p(y))
-        # print(self.rake_static_p(y))
-        # print(q_inf)
-        # print(self.get_V_inf())
         return mt.sqrt((2 * q_inf) / self.rho)
 
     def get_D(self):
@@ -102,7 +108,6 @@ class twoD_DP:
             return self.V_after_wing(y) * (self.V_inf - self.V_after_wing(y))
 
         def inertia_deficit2(y):
-            print(self.p_inf - self.rake_static_p(y))
             return self.p_inf - self.rake_static_p(y)
 
         return self.get_rho() * sc.integrate.quad(inertia_deficit1, y_start, y_end)[0] + \
@@ -133,6 +138,22 @@ class twoD_DP:
             markersize=4,
             linestyle='-'  # Ensure lines connect the points
         )
+        # Display the total pressure in the top-left corner below legend
+        plt.text(
+            0.98, 0.85,
+            f"Total Pressure: {self.p_total_inf:.0f} Pa",
+            transform=plt.gca().transAxes,
+            fontsize=10,
+            horizontalalignment='right'
+        )
+        # Display the reynolds_number in the top-left corner below legend
+        plt.text(
+            0.98, 0.80,
+            f"Reynolds Number: {self.get_Re_inf():.2e}", # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=10,
+            horizontalalignment='right'
+        )
         # Labeling the plot
         plt.title("Pressure Distribution on Airfoil")
         plt.xlabel("Position along chord (x/c)[%]")
@@ -143,19 +164,68 @@ class twoD_DP:
         # Display
         plt.show()
 
+    def plot_Velocity_Deficit(self) :
+        V_deficit = []
+        for i in range(len(self.rake_pos_taps_total_p)):
+            q_inf_at_rake = self.rake_total_p_taps[i] - self.rake_static_p(self.rake_pos_taps_total_p[i])
+            V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / self.rho)
+            V_deficit.append(V_inf_at_rake/self.V_inf)
+
+        # plot the velocity deficit
+        plt.figure(figsize=(10, 6))
+        plt.plot(
+            self.rake_pos_taps_total_p,
+            V_deficit,
+            color="blue",
+            marker='s',
+            markersize=3
+        )
+        plt.title("velocity deficit behind airfoil trailing edge")
+        plt.xlabel("Position along the rake")
+        plt.ylabel("Velocity deficit [%]")
+        # Make a grid in the background for better readability
+        plt.axhline(1, color='black', linewidth=0.8, linestyle='--')  # Reference line for Cp = 0
+        plt.grid(True, linestyle='--', alpha=0.6)
+        # Display
+        plt.show()
+
+    def plot_static_pressure_Deficit(self):
+        V_deficit = []
+        for i in range(len(self.rake_pos_taps_total_p)):
+            q_inf_at_rake = self.rake_total_p_taps[i] - self.rake_static_p(self.rake_pos_taps_total_p[i])
+            V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / self.rho)
+            V_deficit.append(V_inf_at_rake/self.V_inf)
+        range = np.arange(0,max(self.rake_pos_taps_total_p),0.0005)
+        for i in range:
+            q_inf_at_rake = self.rake_total_p(i)-self.rake_static_p(i)
+            V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / self.rho)
+            V_deficit.append(V_inf_at_rake/self.V_inf)
+
+        # plot the velocity deficit
+        plt.figure(figsize=(10, 6))
+        plt.plot(
+            range,
+            V_deficit,
+            color="blue",
+            marker='s',
+            markersize=3
+        )
+        plt.title("velocity deficit behind airfoil trailing edge")
+        plt.xlabel("Position along the rake")
+        plt.ylabel("Velocity deficit [%]")
+        # Make a grid in the background for better readability
+        plt.axhline(1, color='black', linewidth=0.8, linestyle='--')  # Reference line for Cp = 0
+        plt.grid(True, linestyle='--', alpha=0.6)
+        # Display
+        plt.show()
+
     def plot_Cp(self):
-        # normalize pressure readings to pressure coefficients Cps
-        airfoil_top_cps = (self.airfoil_top_p_taps - self.p_inf) / self.q_inf
-        print(self.airfoil_top_p_taps)
-        print(airfoil_top_cps)
-        airfoil_bottom_cps = (self.airfoil_bottom_p_taps - self.p_inf) / self.q_inf
         # plot the Cps
-        import matplotlib.pyplot as plt
         plt.figure(figsize=(10, 6))
         # Plot top side pressures
         plt.plot(
             self.airfoil_pos_top_taps,
-            airfoil_top_cps,
+            self.airfoil_top_cps,
             color="red",
             marker='.',
             label='Top Side (Red)',
@@ -164,19 +234,46 @@ class twoD_DP:
         # Plot bottom side pressures
         plt.plot(
             self.airfoil_pos_bottom_taps,
-            airfoil_bottom_cps,
+            self.airfoil_bottom_cps,
             color="green",
             marker='s',
             label='Bottom Side (Green)',
             markersize=4,
             linestyle='-'  # Ensure lines connect the points
         )
+        # Display the minimum Cp in the top-left corner below legend
+        plt.text(
+            0.98, 0.85,
+            f"Cp min: {min(np.min(self.airfoil_top_cps),np.min(self.airfoil_bottom_cps)):.2f}",
+            transform=plt.gca().transAxes,
+            fontsize=10,
+            horizontalalignment='right'
+        )
+        # Display the maximum Cp in the top-left corner below legend
+        plt.text(
+            0.98, 0.80,
+            f"Cp max: {max(np.max(self.airfoil_top_cps),np.max(self.airfoil_bottom_cps)):.2f}",
+            transform=plt.gca().transAxes,
+            fontsize=10,
+            horizontalalignment='right'
+        )
+        # Display the reynolds_number in the top-left corner below legend
+        plt.text(
+            0.98, 0.75,
+            f"Reynolds Number: {self.get_Re_inf():.2e}", # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=10,
+            horizontalalignment='right'
+        )
+        # Invert the y-axis as it's a Cp plot
+        plt.gca().invert_yaxis()
         # Labeling the plot
         plt.title("Pressure Distribution on Airfoil")
         plt.xlabel("Position along chord (x/c)[%]")
         plt.ylabel("Cp [-]")
         plt.legend()
         # Make a grid in the background for better readability
+        plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for Cp = 0
         plt.grid(True, linestyle='--', alpha=0.6)
         # Display
         plt.show()
