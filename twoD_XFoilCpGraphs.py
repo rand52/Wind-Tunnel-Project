@@ -58,16 +58,19 @@ for i in range(num_angles):
         # Plot upper surface for the current angle
         plt.plot(
             x_upper, cp_upper,
-            label=f'Upper surface (α={alpha}°)', marker='o', color='black', linestyle='-',
+            label=f'Upper surface', marker='o', color='black', linestyle='-',
             linewidth=1, markersize=6, markeredgecolor='black', markerfacecolor='cyan'
         )
 
         # Plot lower surface for the current angle
         plt.plot(
             x_lower, cp_lower,
-            label=f'Lower surface (α={alpha}°)', marker='^', color='black', linestyle='-',
+            label=f'Lower surface', marker='^', color='black', linestyle='-',
             linewidth=1, markersize=6, markeredgecolor='black', markerfacecolor=(1.0, 0.078, 0.576)
         )
+
+    # Add title
+    #plt.title(f"Pressure Coefficient Distribution 2D Airfoil at AOA = {alpha}°", fontsize=16)
 
     # Configure plot settings for the current figure
     plt.gca().invert_yaxis()  # Invert Cp axis
