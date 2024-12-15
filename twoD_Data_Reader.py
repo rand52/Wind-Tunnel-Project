@@ -44,13 +44,18 @@ for row in df.values:
 
 # print(datapoints[6].aoa)
 # print(datapoints[6].get_D())
-dp.plot_CL_a_curve(datapoints[0:39:])
+
+dp.plot_Cm_quart_chord_AOA_curve(datapoints[0:39:])
+dp.plot_CL_AOA_curve(datapoints[0:39:])
 dp.plot_drag_polar(datapoints[0:39:])
+dp.plot_Xcp_AOA_curve(datapoints[0:39:])
+# print(datapoints[4].aoa)
+# print(datapoints[4].get_Cm_LE())
+# print(datapoints[4].get_Cn())
 
 # print("AOA=",datapoints[0].aoa," Cl=",datapoints[0].get_Cl())
 # print(datapoints[0].get_Cd())
 for i in datapoints:
-   print(i.aoa, " ", i.get_D())
    i.plot_Cp()
    i.plot_Velocity_Deficit(mode="fraction", neg_noise_reduction=True)
    i.plot_static_pressure_Deficit()

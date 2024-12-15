@@ -148,10 +148,22 @@ class twoD_DP:
         return self.get_D() / (self.q_inf * S)
 
     def get_Cn(self):
-        def CP_top_and_bottom_dif(x):
+        def CP_bottom_minus_top_dif(x):
             return self.airfoil_bottom_cps_func(x) - self.airfoil_top_cps_func(x)
 
-        return sc.integrate.quad(CP_top_and_bottom_dif, 0, 1, limit=int_sub_div_lim)[0]
+        return sc.integrate.quad(CP_bottom_minus_top_dif, 0, 1, limit=int_sub_div_lim)[0]
+
+    def get_Cm_LE(self):
+        def del_moment_contribution(x):
+            return x*(self.airfoil_top_cps_func(x) - self.airfoil_bottom_cps_func(x))
+
+        return sc.integrate.quad(del_moment_contribution, 0, 1, limit=int_sub_div_lim)[0]
+
+    def get_Xcp(self):
+        return -self.get_Cm_LE()/self.get_Cn()
+
+    def get_Cm_quart_chord(self):
+        return self.get_Cm_LE() + 0.25*self.get_Cn()
 
     def get_Cl(self):
         aoa_rad = mt.radians(self.aoa)
@@ -312,13 +324,13 @@ class twoD_DP:
 
     def plot_static_pressure_Deficit(self):
         p_static_deficit = []
-        for y in self.rake_pos_taps_total_p:
+        for y in self.rake_pos_taps_static_p:
             p_static_deficit.append(self.p_inf - self.rake_static_p_func(y))
 
         # plot the velocity deficit
         plt.figure(figsize=(10, 6))
         plt.plot(
-            self.rake_pos_taps_total_p,
+            self.rake_pos_taps_static_p,
             p_static_deficit,
             color="blue",
             marker='s',
@@ -335,7 +347,7 @@ class twoD_DP:
 
 
 #### Plotting methods for multiple datapoints ####
-def plot_CL_a_curve(datapoints: list[twoD_DP]):
+def plot_CL_AOA_curve(datapoints: list[twoD_DP]):
     # get the data in arrays, use np_arrays for speed
     AOA_s = np.array([datPt.aoa for datPt in datapoints])
     Cl_s = np.array([datPt.get_Cl() for datPt in datapoints])
@@ -421,12 +433,82 @@ def plot_drag_polar(datapoints: list[twoD_DP]):
     plt.xlabel("Cl [-]")
     plt.ylabel("Cd [-]")
     # Major grid
-    plt.gca().xaxis.set_major_locator(plt.MultipleLocator(0.025))  # Major grid spacing for x-axis
-    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.grid(True, linestyle='--',color='black', alpha=0.6)
     # Minor grid
     plt.minorticks_on()  # Enable minor grid
-    plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.005))  # Minor grid spacing for x-axis
+    plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.002))  # Minor grid spacing for x-axis
     plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))  # Minor grid spacing for y-axis
     plt.grid(True, linestyle=':', color='gray', linewidth=0.5, alpha=0.5, which='minor', axis='both')
+    # Display
+    plt.show()
+
+def plot_Cm_quart_chord_AOA_curve(datapoints: list[twoD_DP]):
+    # get the data in arrays, use np_arrays for speed
+    AOA_s = np.array([datPt.aoa for datPt in datapoints])
+    Cm_s = np.array([datPt.get_Cm_quart_chord() for datPt in datapoints])
+    Re_num_s = np.array([datPt.get_Re_inf() for datPt in datapoints])
+
+    # plot the Cl-a curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(
+        AOA_s,
+        Cm_s,
+        color="blue",
+        marker='.',
+        markersize=8
+    )
+    # Display the average reynolds number in the bottom-left corner
+    Re_avg = sum(Re_num_s) / len(Re_num_s)
+    plt.text(
+        0.05, 0.05,
+        f"Reynolds Number: {Re_avg:.2e}",  # format in scientific notation
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        horizontalalignment='left'
+    )
+    # Labeling the plot
+    plt.title(f"Moment coefficient at quarter chord Cm c/4 vs AOA")
+    plt.xlabel("AOA [deg]")
+    plt.ylabel("Cm [-]")
+    # Make a grid in the background for better readability
+    plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for AOA = 0deg
+    # Major grid
+    plt.grid(True, linestyle='--', alpha=0.6)
+    # Display
+    plt.show()
+
+
+def plot_Xcp_AOA_curve(datapoints: list[twoD_DP]):
+    # get the data in arrays, use np_arrays for speed
+    AOA_s = np.array([datPt.aoa for datPt in datapoints])
+    Xcp_s = np.array([datPt.get_Xcp() for datPt in datapoints])
+    Re_num_s = np.array([datPt.get_Re_inf() for datPt in datapoints])
+
+    # plot the Cl-a curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(
+        AOA_s,
+        Xcp_s,
+        color="blue",
+        marker='.',
+        markersize=8
+    )
+    # Display the average reynolds number in the bottom-left corner
+    Re_avg = sum(Re_num_s) / len(Re_num_s)
+    plt.text(
+        0.05, 0.05,
+        f"Reynolds Number: {Re_avg:.2e}",  # format in scientific notation
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        horizontalalignment='left'
+    )
+    # Labeling the plot
+    plt.title(f"Center of pressure location along chord vs AOA")
+    plt.xlabel("AOA [deg]")
+    plt.ylabel("Xcp [x/c]")
+    # Make a grid in the background for better readability
+    plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for AOA = 0deg
+    # Major grid
+    plt.grid(True, linestyle='--', alpha=0.6)
     # Display
     plt.show()
