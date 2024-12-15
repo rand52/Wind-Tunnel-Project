@@ -41,15 +41,3 @@ for row in df.values:
     datPt.init() # initialize datapoint by computing same needed values
     datapoints.append(datPt)
 
-
-# dp.plot_Cm_quart_chord_AOA_curve(datapoints[0:39:])
-# dp.plot_CL_AOA_curve(datapoints[0:39:])
-# dp.plot_CL_AOA_curve(datapoints[0:39:], mode="surface")
-# dp.plot_drag_polar(datapoints[0:39:])
-# dp.plot_drag_polar(datapoints[0:39:], mode="surface")
-# dp.plot_Xcp_AOA_curve(datapoints[0:39:])
-# print("AOA=",datapoints[0].aoa," Cl=",datapoints[0].get_Cl())
-# print(datapoints[0].get_Cd())
-for datPt in datapoints:
-    datPt.plot_Cp()
-    #i.plot_Velocity_Deficit(mode="fraction")

@@ -4,11 +4,21 @@ import scipy as sc
 import numpy as np
 import matplotlib.pyplot as plt
 
-import Tap_Pos_Data_Reader as tappos
+import twoD_Tap_Pos_Data_Reader as tappos
 
 # integration quality parameter
 int_sub_div_lim: int = 100  # Increase the maximum sc.integrate integration quality
 int_error_tolerance = 1e-6  # Increases sc.integrate integration quality by making it take more samples
+
+#plotting constants
+plt_line_width = 1
+plt_circle_marker_size = 8
+plt_square_marker_size = 4
+plt_text_font_size = 10
+plt_axis_font_size = 12
+plt_legend_font_size = 10
+plt_save_directory = "Plots"
+plt_save_pad_inches = 0.1
 
 
 class twoD_DP:
@@ -118,7 +128,7 @@ class twoD_DP:
 
     def get_D(self, mode: str = "rake", neg_noise_reduction: bool = True):
         """mode=rake used for drag data from pressure rake
-        made=surface used for drag from  tap readings"""
+        mode=surface used for drag from  tap readings"""
         if mode == "rake":
             # integration param
             y_start = 0.0435
@@ -154,7 +164,7 @@ class twoD_DP:
 
     def get_Cd(self, mode: str = "rake"):
         """mode=rake used for drag data from pressure rake
-        made=surface used for drag from  tap readings"""
+        mode=surface used for drag from  tap readings"""
         # multiply by b=1, as this is an infinite airfoil and this is per unit span
         S = self.chord * 1
         return self.get_D(mode) / (self.q_inf * S)
@@ -183,12 +193,13 @@ class twoD_DP:
         aoa_rad = mt.radians(self.aoa)
         if mode == "rake":
             return self.get_Cn() * (
-                        mt.cos(aoa_rad) + (mt.sin(aoa_rad) ** 2) / mt.cos(aoa_rad)) - self.get_Cd() * mt.tan(
+                    mt.cos(aoa_rad) + (mt.sin(aoa_rad) ** 2) / mt.cos(aoa_rad)) - self.get_Cd() * mt.tan(
                 aoa_rad)
         elif mode == "surface":
             return self.get_Cn() * mt.cos(aoa_rad)
 
-    def plot_pressures(self):
+    def plot_pressures(self, save=False):
+        """save = True/False to save or not"""
         plt.figure(figsize=(7.8, 6))
         # Plot top side pressures
         plt.plot(
@@ -197,9 +208,8 @@ class twoD_DP:
             color="red",
             marker='.',
             label='Upper Surface (Red)',
-            linewidth=1,
-            markeredgecolor='black',
-            markersize=10
+            linewidth=plt_line_width,
+            markersize=plt_circle_marker_size
         )
         # Plot bottom side pressures
         plt.plot(
@@ -208,40 +218,50 @@ class twoD_DP:
             color="green",
             marker='s',
             label='Lower Surface (Green)',
-            linewidth=1,
-            markeredgecolor='black',
-            markersize=5,
+            linewidth=plt_line_width,
+            markersize=plt_square_marker_size,
             linestyle='-'  # Ensure lines connect the points
+        )
+        # Display the AOA in the bottom-left corner
+        plt.text(
+            0.98, 0.15,
+            fr"$\alpha$ = {self.aoa:.2f}°",  # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=plt_text_font_size,
+            horizontalalignment='right'
+        )
+        # Display the reynolds_number in the bottom-left corner
+        plt.text(
+            0.98, 0.10,
+            f"Re = {self.get_Re_inf():.2e}",  # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=plt_text_font_size,
+            horizontalalignment='right'
         )
         # Display the total pressure in the top-left corner below legend
         plt.text(
-            0.98, 0.85,
+            0.98, 0.05,
             f"Total Pressure: {self.p_total_inf:.0f} Pa",
             transform=plt.gca().transAxes,
-            fontsize=10,
-            horizontalalignment='right'
-        )
-        # Display the reynolds_number in the top-left corner below legend
-        plt.text(
-            0.98, 0.80,
-            f"Reynolds Number: {self.get_Re_inf():.2e}",  # format in scientific notation
-            transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
         # Labeling the plot
-        plt.title(f"Pressure Distribution on Airfoil AOA={self.aoa} deg")
-        plt.xlabel("Position along chord (x/c)[%]")
-        plt.ylabel("Pressure [Pa]")
-        plt.legend()
+        plt.xlabel("Position along chord (x/c) [%]", fontsize=plt_axis_font_size)
+        plt.ylabel("Pressure [Pa]", fontsize=plt_axis_font_size)
+        plt.legend(fontsize=plt_legend_font_size)
         # Make a grid in the background for better readability
         plt.grid(True, linestyle='--', alpha=0.6)
-        # Display
+        if save:
+            os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
+            file_path = os.path.join(plt_save_directory, f"2D_Cp_AOA_{self.aoa}.png")
+            plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+        # Display the plot, after saving it
         plt.show()
+        plt.close()  # Close the figure to free memory
 
-    def plot_Cp(self, save:bool=False):
-        """Save = false doesn't save plots
-        save = true saves plots to directory"""
+    def plot_Cp(self, save: bool = False):
+        """save = True/False to save or not"""
         # plot the Cps
         plt.figure(figsize=(7.8, 6))
         # Plot top side pressures
@@ -251,9 +271,8 @@ class twoD_DP:
             color="red",
             marker='.',
             label='Upper Surface (Red)',
-            linewidth=1,
-            markeredgecolor='black',
-            markersize=10
+            linewidth=plt_line_width,
+            markersize=plt_circle_marker_size
         )
         # Plot bottom side pressures
         plt.plot(
@@ -262,32 +281,32 @@ class twoD_DP:
             color="green",
             marker='s',
             label='Lower Surface (Green)',
-            linewidth=1,
-            markeredgecolor='black',
-            markersize=5,
+            linewidth=plt_line_width,
+            markersize=plt_square_marker_size,
             linestyle='-'  # Ensure lines connect the points
         )
-        # Display the minimum Cp in the top-left corner below legend
+        # Display the AOA in the top-left corner below legend
         plt.text(
             0.98, 0.85,
             fr"$\alpha$ = {self.aoa:.2f}°",  # format in scientific notation
             transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
+        # Display the minimum Cp in the top-left corner below legend
         plt.text(
             0.98, 0.80,
             f"$C_{{p,\\text{{min}}}}$ : {min(np.min(self.airfoil_top_taps_cps), np.min(self.airfoil_bottom_taps_cps)):.2f}",
             transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
         # Display the maximum Cp in the top-left corner below legend
         plt.text(
             0.98, 0.75,
-            f"$C_{{p,\\text{{max}}}}$: {max(np.max(self.airfoil_top_taps_cps), np.max(self.airfoil_bottom_taps_cps)):.2f}",
+            f"$C_{{p,\\text{{max}}}}$ : {max(np.max(self.airfoil_top_taps_cps), np.max(self.airfoil_bottom_taps_cps)):.2f}",
             transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
         # Display the reynolds_number in the top-left corner below legend
@@ -295,32 +314,32 @@ class twoD_DP:
             0.98, 0.70,
             f"Re = {self.get_Re_inf():.2e}",  # format in scientific notation
             transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
         # Invert the y-axis as it's a Cp plot
         plt.gca().invert_yaxis()
         # Labeling the plot
-        plt.xlabel("Position along chord (x/c) [%]", fontsize=12)
-        plt.ylabel(r"$C_p$ [-]", fontsize=12)
-        plt.legend()
+        plt.xlabel("Position along chord (x/c) [%]", fontsize=plt_axis_font_size)
+        plt.ylabel(r"$C_p$ [-]", fontsize=plt_axis_font_size)
+        plt.legend(fontsize=plt_legend_font_size)
         # Make a grid in the background for better readability
         plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for Cp = 0
         plt.grid(True, linestyle='--', alpha=0.6)
         # Save the plot to the specified directory
         if save:
-            os.makedirs("Plots", exist_ok=True)  # Ensure the directory exists
-            file_path = os.path.join(r"Plots", f"2D_Cp_AOA_{self.aoa}.png")
-            plt.savefig(file_path, bbox_inches='tight', pad_inches=0.1)
+            os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
+            file_path = os.path.join(plt_save_directory, f"2D_Cp_AOA_{self.aoa}.png")
+            plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
         # Display the plot, after saving it
         plt.show()
         plt.close()  # Close the figure to free memory
 
-
-    def plot_Velocity_Deficit(self, mode: str = "fraction", neg_noise_reduction: bool = True):
+    def plot_Velocity_Deficit(self, mode: str = "fraction", neg_noise_reduction: bool = True, save: bool = False):
         """mode=fraction gives deficit as fraction of Vinf
         mode=actual gives deficit as actual velocity difference in m/s
-        neg_noise_reduction=True removes the negative values"""
+        neg_noise_reduction=True removes the negative values
+        save = True/False to save or not"""
         V_deficit = []
         for y in self.rake_pos_taps_total_p:
             q_inf_at_rake = self.rake_total_p_func(y) - self.rake_static_p_func(y)
@@ -345,25 +364,65 @@ class twoD_DP:
             V_deficit,
             color="blue",
             marker='s',
-            markersize=3
+            label='Velocity deficit (blue)',
+            linewidth=plt_line_width,
+            markersize=plt_square_marker_size,
+        )
+        # Display the AOA in the bottom-left corner
+        txtpos = [0.10, 0.05]
+        if mode == "fraction":
+            txtpos = [0.10, 0.05]
+        elif mode == "actual":
+            txtpos = [0.90, 0.85]
+        plt.text(
+            0.98, txtpos[0],
+            fr"$\alpha$ = {self.aoa:.2f}°",  # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=plt_text_font_size,
+            horizontalalignment='right'
+        )
+        # Display the reynolds_number in the bottom-left corner
+        plt.text(
+            0.98, txtpos[1],
+            f"Re = {self.get_Re_inf():.2e}",  # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=plt_text_font_size,
+            horizontalalignment='right'
         )
         # label the plot
-        plt.title(f"Velocity deficit behind airfoil trailing edge at AOA={self.aoa} deg")
-        plt.xlabel("Position along the rake [m]")
+        plt.legend(fontsize=plt_legend_font_size)
+        plt.xlabel("Position along the rake [m]", fontsize=plt_axis_font_size)
         if mode == "fraction":
-            plt.ylabel("Velocity at rake as a fraction of Vinf")
+            plt.ylabel(r"Velocity at rake $u_1$ as a fraction of $V_{inf}$", fontsize=plt_axis_font_size)
         elif mode == "actual":
-            plt.ylabel("Velocity deficit [m/s] at rake")
+            plt.ylabel("Velocity deficit [m/s] at rake", fontsize=plt_axis_font_size)
         # Make a grid in the background for better readability
         if mode == "fraction":
             plt.axhline(1, color='black', linewidth=0.8, linestyle='--')  # Reference line
         elif mode == "actual":
             plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line
+        # grid
         plt.grid(True, linestyle='--', alpha=0.6)
-        # Display
+        # saving
+        if save:
+            path = f"2D_V_deficit_AOA{self.aoa}.png"
+            if mode == "fraction" and neg_noise_reduction:
+                path = f"2D_V_deficit_fraction_AOA{self.aoa}.png"
+            elif mode == "fraction" and not neg_noise_reduction:
+                path = f"2D_V_deficit_fraction_no_noise_reduction_AOA{self.aoa}.png"
+            elif mode == "actual" and neg_noise_reduction:
+                path = f"2D_V_deficit_actual_AOA{self.aoa}.png"
+            elif mode == "actual" and not neg_noise_reduction:
+                path = f"2D_V_deficit_actual_AOA_no_noise_reduction{self.aoa}.png"
+            os.makedirs("Plots", exist_ok=True)  # Ensure the directory exists
+            full_file_path = os.path.join(plt_save_directory, path)
+            plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+        # Display the plot, after saving it
         plt.show()
+        plt.close()  # Close the figure to free memory
 
-    def plot_static_pressure_Deficit(self):
+    def plot_static_pressure_Deficit(self, save: bool = False):
+        """save = True/False to save or not"""
         p_static_deficit = []
         for y in self.rake_pos_taps_static_p:
             p_static_deficit.append(self.p_inf - self.rake_static_p_func(y))
@@ -375,22 +434,46 @@ class twoD_DP:
             p_static_deficit,
             color="blue",
             marker='s',
-            markersize=3
+            markersize=plt_square_marker_size,
+            label="Static p deficit (blue)"
         )
-        plt.title(f"Static pressure deficit behind airfoil trailing edge at AOA={self.aoa}deg")
-        plt.xlabel("Position along the rake [m]")
-        plt.ylabel("Pressure deficit [Pa]")
+        # Display the AOA in the bottom-left corner
+        plt.text(
+            0.98, 0.10,
+            fr"$\alpha$ = {self.aoa:.2f}°",  # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=plt_text_font_size,
+            horizontalalignment='right'
+        )
+        # Display the reynolds_number in the bottom-left corner
+        plt.text(
+            0.98, 0.05,
+            f"Re = {self.get_Re_inf():.2e}",  # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=plt_text_font_size,
+            horizontalalignment='right'
+        )
+        plt.legend(fontsize=plt_legend_font_size)
+        plt.xlabel("Position along the rake [m]", fontsize=plt_axis_font_size)
+        plt.ylabel("Pressure deficit [Pa]", fontsize=plt_axis_font_size)
         # Make a grid in the background for better readability
         plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for Cp = 0
         plt.grid(True, linestyle='--', alpha=0.6)
-        # Display
+        # saving
+        if save:
+            os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
+            file_path = os.path.join(plt_save_directory, f"2D_static_p_deficit_AOA_{self.aoa}.png")
+            plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+        # Display the plot, after saving it
         plt.show()
+        plt.close()  # Close the figure to free memory
 
 
 #### Plotting methods for multiple datapoints ####
-def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake"):
+def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool = False):
     """mode=rake used for drag data from pressure rake
-    made=surface used for drag from  tap readings"""
+    made=surface used for drag from  tap readings
+    save = True/False to save or not"""
     # get the data in arrays, use np_arrays for speed
     AOA_s = np.array([datPt.aoa for datPt in datapoints])
     Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
@@ -403,14 +486,15 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake"):
         Cl_s,
         color="blue",
         marker='.',
-        markersize=10
+        label = r"$\alpha$ vs $C_l$",
+        markersize=plt_circle_marker_size
     )
     # Display the maximum CL in the bottom-right corner
     plt.text(
         0.98, 0.15,
         f"Cl at stall: {np.max(Cl_s):.2f}",
         transform=plt.gca().transAxes,
-        fontsize=10,
+        fontsize=plt_text_font_size,
         horizontalalignment='right'
     )
     # Display the AOA at the maximum CL
@@ -418,34 +502,41 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake"):
         0.98, 0.10,
         f"AOA at stall: {AOA_s[np.argmax(Cl_s)]:.2f}",
         transform=plt.gca().transAxes,
-        fontsize=10,
+        fontsize=plt_text_font_size,
         horizontalalignment='right'
     )
     # Display the average reynolds number in the bottom-right corner
     Re_avg = sum(Re_num_s) / len(Re_num_s)
     plt.text(
         0.98, 0.05,
-        f"Reynolds Number: {Re_avg:.2e}",  # format in scientific notation
+        f"Re = {Re_avg:.2e}",  # format in scientific notation
         transform=plt.gca().transAxes,
-        fontsize=10,
+        fontsize=plt_text_font_size,
         horizontalalignment='right'
     )
+    plt.legend(fontsize = plt_legend_font_size)
     # Labeling the plot
-    plt.title(f"Lift coefficient Cl vs AOA")
-    plt.xlabel("AOA [deg]")
-    plt.ylabel("Cl [-]")
+    plt.xlabel(r"$\alpha$ [°]", fontsize=plt_axis_font_size)
+    plt.ylabel(r"$C_l$ [-]", fontsize=plt_axis_font_size)
     # Make a grid in the background for better readability
     plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for Cl = 0
     plt.axvline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for AOA = 0deg
     # Major grid
     plt.grid(True, linestyle='--', alpha=0.6)
-    # Display
+    # Saving
+    if save:
+        os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
+        file_path = os.path.join(plt_save_directory, f"2D_Cl-alpha_plot.png")
+        plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+    # Display the plot, after saving it
     plt.show()
+    plt.close()  # Close the figure to free memory
 
 
-def plot_drag_polar(datapoints: list[twoD_DP], mode:str="rake"):
+def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = False):
     """mode=rake used for drag data from pressure rake
-    made=surface used for drag from  tap readings"""
+    made=surface used for drag from  tap readings
+    save = True/False to save or not"""
     # get the data in arrays, use np_arrays for speed
     Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
     Cd_s = np.array([datPt.get_Cd(mode) for datPt in datapoints])
@@ -458,42 +549,60 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode:str="rake"):
         Cl_s,
         color="blue",
         marker='.',
-        markersize=10
+        markersize=plt_circle_marker_size,
+        label = r"$C_l$ vs $C_d$"
     )
     # Display the average reynolds number in the bottom-right corner
     Re_avg = sum(Re_num_s) / len(Re_num_s)
     plt.text(
         0.98, 0.05,
-        f"Reynolds Number: {Re_avg:.2e}",  # format in scientific notation
+        f"Re = {Re_avg:.2e}",  # format in scientific notation
         transform=plt.gca().transAxes,
-        fontsize=10,
+        fontsize=plt_text_font_size,
         horizontalalignment='right'
     )
+    plt.legend(fontsize=plt_legend_font_size)
     # Labeling the plot
-    plt.title(f"Drag Polar")
-    plt.xlabel("Cd [-]")
-    plt.ylabel("Cl [-]")
+    plt.xlabel(r"$C_d$ [-]", fontsize=plt_axis_font_size)
+    plt.ylabel(r"$C_l$ [-]", fontsize=plt_axis_font_size)
     # Major grid
-    plt.grid(True, linestyle='--', color='black', alpha=0.6)
+    plt.grid(True, linestyle='--', color='gray', alpha=0.6)
     # Minor grid
     plt.minorticks_on()  # Enable minor grid
     plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.002))  # Minor grid spacing for x-axis
     plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))  # Minor grid spacing for y-axis
     plt.grid(True, linestyle=':', color='gray', linewidth=0.5, alpha=0.5, which='minor', axis='both')
-    # Display
+    # saving
+    if save:
+        os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
+        file_path = os.path.join(plt_save_directory, f"2D_drag_polar.png")
+        plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+    # Display the plot, after saving it
     plt.show()
+    plt.close()  # Close the figure to free memory
 
 
-def plot_Cm_AOA_curve(datapoints: list[twoD_DP], mode="quarter"):
+def plot_Cm_AOA_curve(datapoints: list[twoD_DP], mode="quarter", save: bool = False):
     """mode = quarter for quarter chord moment
-    mode = le for leading edge moment"""
+    mode = le for leading edge moment
+    save = True/False to save or not"""
     # get the data in arrays, use np_arrays for speed
     AOA_s = np.array([datPt.aoa for datPt in datapoints])
     Re_num_s = np.array([datPt.get_Re_inf() for datPt in datapoints])
+    Cm_s = np.empty(0)
+    label = r"$\alpha$ vs $C_{m_{c/4}}$"
+    txt_pos = [0.02, 0.11]
+    txt_align = "left"
     if mode == "quarter":
         Cm_s = np.array([datPt.get_Cm_quart_chord() for datPt in datapoints])
+        label=r"$\alpha$ vs $C_{m_{c/4}}$"
+        txt_pos = [0.02, 0.11]
+        txt_align = "left"
     elif mode == "le":
         Cm_s = np.array([datPt.get_Cm_LE() for datPt in datapoints])
+        label=r"$\alpha$ vs $C_{m_{LE}}$"
+        txt_pos = [0.98, 0.85]
+        txt_align = "right"
 
     # plot the Cl-a curve
     plt.figure(figsize=(7.8, 6))
@@ -502,30 +611,45 @@ def plot_Cm_AOA_curve(datapoints: list[twoD_DP], mode="quarter"):
         Cm_s,
         color="blue",
         marker='.',
-        markersize=10
+        markersize=plt_circle_marker_size,
+        label = label
     )
     # Display the average reynolds number in the bottom-left corner
     Re_avg = sum(Re_num_s) / len(Re_num_s)
     plt.text(
-        0.05, 0.05,
-        f"Reynolds Number: {Re_avg:.2e}",  # format in scientific notation
+        txt_pos[0], txt_pos[1],
+        f"Re = {Re_avg:.2e}",  # format in scientific notation
         transform=plt.gca().transAxes,
-        fontsize=10,
-        horizontalalignment='left'
+        fontsize=plt_text_font_size,
+        horizontalalignment=txt_align
     )
+    plt.legend(fontsize=plt_legend_font_size)
     # Labeling the plot
-    plt.title(f"Moment coefficient at quarter chord Cm c/4 vs AOA")
-    plt.xlabel("AOA [deg]")
-    plt.ylabel("Cm [-]")
+    plt.xlabel(r"$\alpha$ [°]", fontsize=plt_axis_font_size)
+    if mode == "quarter":
+        plt.ylabel(r"$C_{m_{c/4}}$ [-]", fontsize=plt_axis_font_size)
+    elif mode == "le":
+        plt.ylabel(r"$C_{m_{LE}}$ [-]", fontsize=plt_axis_font_size)
     # Make a grid in the background for better readability
     plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for AOA = 0deg
     # Major grid
     plt.grid(True, linestyle='--', alpha=0.6)
-    # Display
+    if save:
+        path = f"2D_Cm-alpha_plot"
+        if mode == "quarter":
+            path = f"2D_Cm_quarter_c-alpha_plot"
+        elif mode == "le":
+            path = f"2D_Cm_LE-alpha_plot"
+        os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
+        full_file_path = os.path.join(plt_save_directory, path)
+        plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+    # Display the plot, after saving it
     plt.show()
+    plt.close()  # Close the figure to free memory
 
 
-def plot_Xcp_AOA_curve(datapoints: list[twoD_DP]):
+def plot_Xcp_AOA_curve(datapoints: list[twoD_DP], save: bool = False):
+    """save = True/False to save or not"""
     # get the data in arrays, use np_arrays for speed
     AOA_s = np.array([datPt.aoa for datPt in datapoints])
     Xcp_s = np.array([datPt.get_Xcp() for datPt in datapoints])
@@ -538,24 +662,31 @@ def plot_Xcp_AOA_curve(datapoints: list[twoD_DP]):
         Xcp_s,
         color="blue",
         marker='.',
-        markersize=10
+        label=r"$\alpha$ vs $X_{Cp}$",
+        markersize=plt_circle_marker_size
     )
     # Display the average reynolds number in the bottom-left corner
     Re_avg = sum(Re_num_s) / len(Re_num_s)
     plt.text(
-        0.05, 0.05,
-        f"Reynolds Number: {Re_avg:.2e}",  # format in scientific notation
+        0.98, 0.89,
+        f"Re = {Re_avg:.2e}",  # format in scientific notation
         transform=plt.gca().transAxes,
-        fontsize=10,
-        horizontalalignment='left'
+        fontsize=plt_text_font_size,
+        horizontalalignment='right'
     )
     # Labeling the plot
-    plt.title(f"Center of pressure location along chord vs AOA")
-    plt.xlabel("AOA [deg]")
-    plt.ylabel("Xcp [x/c]")
+    plt.legend(fontsize=plt_legend_font_size)
+    plt.xlabel(r"$\alpha$ [°]", fontsize=plt_axis_font_size)
+    plt.ylabel(r"$X_{Cp}$ [x/c]", fontsize=plt_axis_font_size)
     # Make a grid in the background for better readability
     plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for AOA = 0deg
     # Major grid
     plt.grid(True, linestyle='--', alpha=0.6)
-    # Display
+    # saving
+    if save:
+        os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
+        file_path = os.path.join(plt_save_directory, f"2D_Xcp-alpha_plot.png")
+        plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+    # Display the plot, after saving it
     plt.show()
+    plt.close()  # Close the figure to free memory

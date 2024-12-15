@@ -3,6 +3,15 @@ import os
 import pandas as pd
 import numpy as np
 
+#plotting constants
+plt_line_width = 1
+plt_circle_marker_size = 8
+plt_square_marker_size = 4
+plt_text_font_size = 10
+plt_axis_font_size = 12
+plt_legend_font_size = 10
+plt_save_directory = "Plots"
+plt_save_pad_inches = 0.1
 
 class twoD_DP_experimental:
     reynolds_num = 2.1 * 10 ** 5  # reynolds number constant for all numerical analysis
@@ -16,8 +25,7 @@ class twoD_DP_experimental:
         self.bottom_cps: np.ndarray = None
 
     def plot_Cp(self, save: bool = False):
-        """Save = False doesn't save plots
-        save = True saves plots to directory"""
+        """save = True/False to save or not"""
         # plot the Cps
         plt.figure(figsize=(7.8, 6))
         # Plot top side pressures
@@ -27,9 +35,8 @@ class twoD_DP_experimental:
             color="red",
             marker='.',
             label='Upper Surface (Red)',
-            linewidth=1,
-            markeredgecolor='black',
-            markersize=10
+            linewidth=plt_line_width,
+            markersize=plt_circle_marker_size
         )
         # Plot bottom side pressures
         plt.plot(
@@ -38,32 +45,32 @@ class twoD_DP_experimental:
             color="green",
             marker='s',
             label='Lower Surface (Green)',
-            linewidth=1,
-            markeredgecolor='black',
-            markersize=5,
+            linewidth=plt_line_width,
+            markersize=plt_square_marker_size,
             linestyle='-'  # Ensure lines connect the points
         )
-        # Display the minimum Cp in the top-left corner below legend
+        # Display the AOA in the top-left corner below legend
         plt.text(
             0.98, 0.85,
             fr"$\alpha$ = {self.aoa:.2f}°",  # format in scientific notation
             transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
+        # Display the minimum Cp in the top-left corner below legend
         plt.text(
             0.98, 0.80,
             f"$C_{{p,\\text{{min}}}}$ : {min(np.min(self.top_cps), np.min(self.bottom_cps)):.2f}",
             transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
         # Display the maximum Cp in the top-left corner below legend
         plt.text(
             0.98, 0.75,
-            f"$C_{{p,\\text{{max}}}}$: {max(np.max(self.top_cps), np.max(self.bottom_cps)):.2f}",
+            f"$C_{{p,\\text{{max}}}}$ : {max(np.max(self.top_cps), np.max(self.bottom_cps)):.2f}",
             transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
         # Display the reynolds_number in the top-left corner below legend
@@ -71,23 +78,23 @@ class twoD_DP_experimental:
             0.98, 0.70,
             f"Re = {self.reynolds_num:.2e}",  # format in scientific notation
             transform=plt.gca().transAxes,
-            fontsize=10,
+            fontsize=plt_text_font_size,
             horizontalalignment='right'
         )
         # Invert the y-axis as it's a Cp plot
         plt.gca().invert_yaxis()
         # Labeling the plot
-        plt.xlabel("Position along chord (x/c) [%]", fontsize=12)
-        plt.ylabel(r"$C_p$ [-]", fontsize=12)
-        plt.legend()
+        plt.xlabel("Position along chord (x/c) [%]", fontsize=plt_axis_font_size)
+        plt.ylabel(r"$C_p$ [-]", fontsize=plt_axis_font_size)
+        plt.legend(fontsize=plt_legend_font_size)
         # Make a grid in the background for better readability
         plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for Cp = 0
         plt.grid(True, linestyle='--', alpha=0.6)
         # Save the plot to the specified directory
         if save:
-            os.makedirs("Plots", exist_ok=True)  # Ensure the directory exists
-            file_path = os.path.join(r"Plots", f"2D_Cp_Numerical_AOA_{self.aoa}.png")
-            plt.savefig(file_path, bbox_inches='tight', pad_inches=0.1)
+            os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
+            file_path = os.path.join(plt_save_directory, f"2D_Cp_AOA_{self.aoa}.png")
+            plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
         # Display the plot, after saving it
         plt.show()
         plt.close()  # Close the figure to free memory
