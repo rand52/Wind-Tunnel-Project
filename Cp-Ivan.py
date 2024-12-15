@@ -4,6 +4,24 @@ import scipy as sc
 
 import twoD_Datapoint as dp
 
+# Load the Excel file
+file_path = "SLT practical coordinates.xlsx"
+df = pd.read_excel(file_path)
+
+# Specify the column name
+column_name = "total wake rake probe locations [mm]"  # Replace with your column name
+
+# Check if the column exists
+if column_name in df.columns:
+    # Select only numeric values
+    numeric_data = df[column_name].dropna()  # Remove NaN values
+    numeric_data = numeric_data[pd.to_numeric(numeric_data, errors="coerce").notnull()]
+    print(numeric_data)
+else:
+    print(f"Column '{column_name}' does not exist.")
+
+
+
 # txt datafile with test results
 datafile = "raw_2D.txt"
 comment_indicator = "#"  # line indicator NOT read
@@ -41,15 +59,14 @@ for row in df.values:
     datPt.init() # initialize datapoint by computing same needed values
     datapoints.append(datPt)
 
+# print(datapoints[0].rake_total_p_taps)
+# for i in datapoints[0].rake_pos_taps_total_p:
+#     print(datapoints[0].rake_total_p_func(i))
+#dp.plot_CL_a_curve(datapoints)
+for i in datapoints:
+    i.plot_Velocity_Deficit()
+    i.plot_static_pressure_Deficit()
+    #print(i.get_D())
 
-# dp.plot_Cm_quart_chord_AOA_curve(datapoints[0:39:])
-# dp.plot_CL_AOA_curve(datapoints[0:39:])
-# dp.plot_CL_AOA_curve(datapoints[0:39:], mode="surface")
-# dp.plot_drag_polar(datapoints[0:39:])
-# dp.plot_drag_polar(datapoints[0:39:], mode="surface")
-# dp.plot_Xcp_AOA_curve(datapoints[0:39:])
-# print("AOA=",datapoints[0].aoa," Cl=",datapoints[0].get_Cl())
-# print(datapoints[0].get_Cd())
-for datPt in datapoints:
-    datPt.plot_Cp()
-    #i.plot_Velocity_Deficit(mode="fraction")
+#ptot =
+
