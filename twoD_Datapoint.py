@@ -143,7 +143,8 @@ class twoD_DP:
         #sc.integrate.quad(inertia_deficit2, y_start, y_end, limit=int_sub_div_lim,epsabs=int_error_tolerance,epsrel=int_error_tolerance)[0]
 
     def get_Cd(self):
-        S = self.chord * self.span
+        # multiply by b=1, as this is an infinite airfoil and this is per unit span
+        S = self.chord * 1
         return self.get_D() / (self.q_inf * S)
 
     def get_Cn(self):
@@ -380,7 +381,13 @@ def plot_CL_a_curve(datapoints: list[twoD_DP]):
     plt.ylabel("Cl [-]")
     # Make a grid in the background for better readability
     plt.axhline(0, color='black', linewidth=0.8, linestyle='--')  # Reference line for AOA = 0deg
+    # Major grid
     plt.grid(True, linestyle='--', alpha=0.6)
+    # Minor grid
+    plt.minorticks_on()  # Enable minor grid
+    plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.2))  # Minor grid spacing for x-axis
+    plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.1))  # Minor grid spacing for y-axis
+    plt.grid(True, linestyle=':', color='gray', linewidth=0.5, alpha=0.5, which='minor', axis='both')
     # Display
     plt.show()
 
@@ -413,7 +420,13 @@ def plot_drag_polar(datapoints: list[twoD_DP]):
     plt.title(f"Drag Polar")
     plt.xlabel("Cl [-]")
     plt.ylabel("Cd [-]")
-    # Make a grid in the background for better readability
+    # Major grid
+    plt.gca().xaxis.set_major_locator(plt.MultipleLocator(0.025))  # Major grid spacing for x-axis
     plt.grid(True, linestyle='--', alpha=0.6)
+    # Minor grid
+    plt.minorticks_on()  # Enable minor grid
+    plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.005))  # Minor grid spacing for x-axis
+    plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))  # Minor grid spacing for y-axis
+    plt.grid(True, linestyle=':', color='gray', linewidth=0.5, alpha=0.5, which='minor', axis='both')
     # Display
     plt.show()
