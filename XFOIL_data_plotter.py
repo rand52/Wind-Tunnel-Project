@@ -5,10 +5,10 @@ import numpy as np
 
 
 class twoD_DP_experimental:
-    reynolds_num = 2.1 * 10 ** 5  # reynolds number constant for all experiments
+    reynolds_num = 2.1 * 10 ** 5  # reynolds number constant for all numerical analysis
 
     def __init__(self):
-        """Constructor for the 2D experimental datapoint class. Takes experimental data for a certain AOA"""
+        """Constructor for the 2D numerical analysis datapoint class. Takes analysis data for a certain AOA"""
         self.aoa: float = None
         self.top_coordinates: np.ndarray = None
         self.top_cps: np.ndarray = None
@@ -86,7 +86,7 @@ class twoD_DP_experimental:
         # Save the plot to the specified directory
         if save:
             os.makedirs("Plots", exist_ok=True)  # Ensure the directory exists
-            file_path = os.path.join(r"Plots", f"2D_Cp_Experimental_AOA_{self.aoa}.png")
+            file_path = os.path.join(r"Plots", f"2D_Cp_Numerical_AOA_{self.aoa}.png")
             plt.savefig(file_path, bbox_inches='tight', pad_inches=0.1)
         # Display the plot, after saving it
         plt.show()
