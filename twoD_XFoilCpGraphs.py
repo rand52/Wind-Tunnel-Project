@@ -7,7 +7,6 @@ file_path = 'XFoil_Data.xlsx'
 # Read the Excel sheet
 data = pd.read_excel(file_path)
 
-
 # Function to split data into upper and lower surfaces
 def split_upper_lower(x, cp):
     """
@@ -70,7 +69,7 @@ for i in range(num_angles):
         )
 
     # Add title
-    #plt.title(f"Pressure Coefficient Distribution 2D Airfoil at AOA = {alpha}°", fontsize=16)
+    #Splt.title(f"Pressure Coefficient Distribution 2D Airfoil at AOA = {alpha}°", fontsize=16)
 
     # Configure plot settings for the current figure
     plt.gca().invert_yaxis()  # Invert Cp axis
@@ -80,9 +79,11 @@ for i in range(num_angles):
     plt.xlabel("x/c (%)", fontsize=16)
     plt.ylabel(r"$c_p$  (-)", fontsize=16)
 
+    # Add gridlines
+    plt.grid(which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+
     # Tight layout for better spacing
     plt.tight_layout()
 
     # Show the plot for the current set of angles
     plt.show()
-

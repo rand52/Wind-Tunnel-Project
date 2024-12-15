@@ -43,4 +43,4 @@ for row in df.values:
 
 
 for i in datapoints:
-    i.get_D()
+    i.plot_Cp()
