@@ -41,11 +41,16 @@ for row in df.values:
     datPt.init() # initialize datapoint by computing same needed values
     datapoints.append(datPt)
 
-# print(datapoints[0].rake_total_p_taps)
-# for i in datapoints[0].rake_pos_taps_total_p:
-#     print(datapoints[0].rake_total_p_func(i))
-#dp.plot_CL_a_curve(datapoints)
+
+# print(datapoints[6].aoa)
+# print(datapoints[6].get_D())
+dp.plot_CL_a_curve(datapoints[0:39:])
+dp.plot_drag_polar(datapoints[0:39:])
+
+# print("AOA=",datapoints[0].aoa," Cl=",datapoints[0].get_Cl())
+# print(datapoints[0].get_Cd())
 for i in datapoints:
-    i.plot_Velocity_Deficit()
-    i.plot_static_pressure_Deficit()
-    #print(i.get_D())
+   print(i.aoa, " ", i.get_D())
+   i.plot_Cp()
+   i.plot_Velocity_Deficit(mode="fraction", neg_noise_reduction=True)
+   i.plot_static_pressure_Deficit()
