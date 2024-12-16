@@ -525,9 +525,12 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
     plt.grid(True, linestyle='--', alpha=0.6)
     # Saving
     if save:
+        path = f"2D_Cl-alpha_plot.png"
+        if mode == "surface":
+            path = f"2D_Cl-alpha_plot_from_SURFACE_reading_only.png"
         os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
-        file_path = os.path.join(plt_save_directory, f"2D_Cl-alpha_plot.png")
-        plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+        full_file_path = os.path.join(plt_save_directory, path)
+        plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
     # Display the plot, after saving it
     plt.show()
     plt.close()  # Close the figure to free memory
@@ -574,9 +577,12 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
     plt.grid(True, linestyle=':', color='gray', linewidth=0.5, alpha=0.5, which='minor', axis='both')
     # saving
     if save:
+        path = f"2D_Cl-alpha_plot.png"
+        if mode == "surface":
+            path = f"2D_drag_polar_from_SURFACE_readings_only.png"
         os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
-        file_path = os.path.join(plt_save_directory, f"2D_drag_polar.png")
-        plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+        full_file_path = os.path.join(plt_save_directory, path)
+        plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
     # Display the plot, after saving it
     plt.show()
     plt.close()  # Close the figure to free memory
