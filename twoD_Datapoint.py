@@ -405,15 +405,14 @@ class twoD_DP:
         plt.grid(True, linestyle='--', alpha=0.6)
         # saving
         if save:
-            path = f"2D_V_deficit_AOA{self.aoa}.png"
-            if mode == "fraction" and neg_noise_reduction:
-                path = f"2D_V_deficit_fraction_AOA{self.aoa}.png"
-            elif mode == "fraction" and not neg_noise_reduction:
-                path = f"2D_V_deficit_fraction_no_noise_reduction_AOA{self.aoa}.png"
-            elif mode == "actual" and neg_noise_reduction:
-                path = f"2D_V_deficit_actual_AOA{self.aoa}.png"
-            elif mode == "actual" and not neg_noise_reduction:
-                path = f"2D_V_deficit_actual_AOA_no_noise_reduction{self.aoa}.png"
+            path = f"2D_V_deficit_AOA{self.aoa}"
+            if mode == "actual":
+                path += "_actual"
+            if mode == "fraction":
+                path += "_fraction"
+            if not neg_noise_reduction:
+                path += "_no_noise_reduction"
+            path += ".png"
             os.makedirs("Plots", exist_ok=True)  # Ensure the directory exists
             full_file_path = os.path.join(plt_save_directory, path)
             plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
@@ -470,15 +469,25 @@ class twoD_DP:
 
 
 #### Plotting methods for multiple datapoints ####
-def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool = False):
+def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool = False, color_split: int = -1):
     """mode=rake used for drag data from pressure rake
     made=surface used for drag from  tap readings
-    save = True/False to save or not"""
+    save = True/False to save or not
+    color_split = array index for datapoints from which to plot in different color for example for hysteresis
+    if set to -1 it's just one color"""
     # get the data in arrays, use np_arrays for speed
-    AOA_s = np.array([datPt.aoa for datPt in datapoints])
-    Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
     Re_num_s = np.array([datPt.get_Re_inf() for datPt in datapoints])
-
+    AOA_s2: np.ndarray = np.array(0)
+    Cl_s2: np.ndarray = np.array(0)
+    if color_split < 0:
+        AOA_s = np.array([datPt.aoa for datPt in datapoints])
+        Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
+    else:
+        AOA_s = np.array([datPt.aoa for datPt in datapoints[:color_split:]])
+        Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints[:color_split:]])
+        # for second color
+        AOA_s2 = np.array([datPt.aoa for datPt in datapoints[color_split::]])
+        Cl_s2 = np.array([datPt.get_Cl(mode) for datPt in datapoints[color_split::]])
     # plot the Cl-a curve
     plt.figure(figsize=(7.8, 6))
     plt.plot(
@@ -486,9 +495,18 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
         Cl_s,
         color="blue",
         marker='.',
-        label = r"$\alpha$ vs $C_l$",
+        label=r"$\alpha$ vs $C_l$",
         markersize=plt_circle_marker_size
     )
+    if color_split > 0:
+        plt.plot(
+            AOA_s2,
+            Cl_s2,
+            color="yellow",
+            marker='.',
+            label=r"$\alpha$ vs $C_l$ hysteresis",
+            markersize=plt_circle_marker_size
+        )
     # Display the maximum CL in the bottom-right corner
     plt.text(
         0.98, 0.15,
@@ -514,7 +532,7 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
         fontsize=plt_text_font_size,
         horizontalalignment='right'
     )
-    plt.legend(fontsize = plt_legend_font_size)
+    plt.legend(fontsize=plt_legend_font_size)
     # Labeling the plot
     plt.xlabel(r"$\alpha$ [°]", fontsize=plt_axis_font_size)
     plt.ylabel(r"$C_l$ [-]", fontsize=plt_axis_font_size)
@@ -525,9 +543,12 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
     plt.grid(True, linestyle='--', alpha=0.6)
     # Saving
     if save:
-        path = f"2D_Cl-alpha_plot.png"
+        path = f"2D_Cl-alpha_plot"
         if mode == "surface":
-            path = f"2D_Cl-alpha_plot_from_SURFACE_reading_only.png"
+            path += "_from_SURFACE_readings_only"
+        if color_split > 0:
+            path += "_hysteresis_included"
+        path += ".png"
         os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
         full_file_path = os.path.join(plt_save_directory, path)
         plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
@@ -536,14 +557,25 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
     plt.close()  # Close the figure to free memory
 
 
-def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = False):
+def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = False, color_split: int = -1):
     """mode=rake used for drag data from pressure rake
     made=surface used for drag from  tap readings
-    save = True/False to save or not"""
+    save = True/False to save or not
+    color_split = array index for datapoints from which to plot in different color for example for hysteresis
+    if set to -1 it's just one color"""
     # get the data in arrays, use np_arrays for speed
-    Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
-    Cd_s = np.array([datPt.get_Cd(mode) for datPt in datapoints])
     Re_num_s = np.array([datPt.get_Re_inf() for datPt in datapoints])
+    Cl_s2: np.ndarray = np.array(0)
+    Cd_s2: np.ndarray = np.array(0)
+    if color_split < 0:
+        Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
+        Cd_s = np.array([datPt.get_Cd(mode) for datPt in datapoints])
+    else:
+        Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints[:color_split:]])
+        Cd_s = np.array([datPt.get_Cd(mode) for datPt in datapoints[:color_split:]])
+        # for second color
+        Cl_s2 = np.array([datPt.get_Cl(mode) for datPt in datapoints[color_split::]])
+        Cd_s2 = np.array([datPt.get_Cd(mode) for datPt in datapoints[color_split::]])
 
     # plot the Cl-Cd curve
     plt.figure(figsize=(7.8, 6))
@@ -553,8 +585,17 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
         color="blue",
         marker='.',
         markersize=plt_circle_marker_size,
-        label = r"$C_l$ vs $C_d$"
+        label=r"$C_l$ vs $C_d$"
     )
+    if color_split > 0:
+        plt.plot(
+            Cd_s2,
+            Cl_s2,
+            color="yellow",
+            marker='.',
+            markersize=plt_circle_marker_size,
+            label=r"$C_l$ vs $C_d$ hysteresis"
+        )
     # Display the average reynolds number in the bottom-right corner
     Re_avg = sum(Re_num_s) / len(Re_num_s)
     plt.text(
@@ -577,9 +618,12 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
     plt.grid(True, linestyle=':', color='gray', linewidth=0.5, alpha=0.5, which='minor', axis='both')
     # saving
     if save:
-        path = f"2D_Cl-alpha_plot.png"
+        path = f"2D_Cl-alpha_plot"
         if mode == "surface":
-            path = f"2D_drag_polar_from_SURFACE_readings_only.png"
+            path += "_from_SURFACE_readings_only"
+        if color_split > 0:
+            path += "_hysteresis_included"
+        path += ".png"
         os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
         full_file_path = os.path.join(plt_save_directory, path)
         plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
@@ -601,12 +645,12 @@ def plot_Cm_AOA_curve(datapoints: list[twoD_DP], mode="quarter", save: bool = Fa
     txt_align = "left"
     if mode == "quarter":
         Cm_s = np.array([datPt.get_Cm_quart_chord() for datPt in datapoints])
-        label=r"$\alpha$ vs $C_{m_{c/4}}$"
+        label = r"$\alpha$ vs $C_{m_{c/4}}$"
         txt_pos = [0.02, 0.11]
         txt_align = "left"
     elif mode == "le":
         Cm_s = np.array([datPt.get_Cm_LE() for datPt in datapoints])
-        label=r"$\alpha$ vs $C_{m_{LE}}$"
+        label = r"$\alpha$ vs $C_{m_{LE}}$"
         txt_pos = [0.98, 0.85]
         txt_align = "right"
 
@@ -618,7 +662,7 @@ def plot_Cm_AOA_curve(datapoints: list[twoD_DP], mode="quarter", save: bool = Fa
         color="blue",
         marker='.',
         markersize=plt_circle_marker_size,
-        label = label
+        label=label
     )
     # Display the average reynolds number in the bottom-left corner
     Re_avg = sum(Re_num_s) / len(Re_num_s)
