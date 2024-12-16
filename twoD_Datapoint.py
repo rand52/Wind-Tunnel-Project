@@ -24,10 +24,18 @@ plt_save_pad_inches = 0.1
 class twoD_DP:
     chord: float = 0.16  # m  constant for test
     span: float = 0.4  # m constant for the test
+    # rake coordinates
     rake_pos_taps_total_p = tappos.rake_pos_taps_total_p
     rake_pos_taps_static_p = tappos.rake_pos_taps_static_p
-    airfoil_pos_top_taps = tappos.airfoil_pos_top_taps
-    airfoil_pos_bottom_taps = tappos.airfoil_pos_bottom_taps
+    # surface taps x coordinates
+    airfoil_pos_top_taps_x = tappos.airfoil_pos_top_taps_x
+    airfoil_pos_bottom_taps_x = tappos.airfoil_pos_bottom_taps_x
+    # surface taps y coordinates
+    airfoil_pos_top_taps_y_nose = tappos.airfoil_pos_top_taps_y_nose
+    airfoil_pos_top_taps_y_tail = tappos.airfoil_pos_top_taps_y_tail
+    # note positive, even though in other direction
+    airfoil_pos_bottom_taps_y_nose = tappos.airfoil_pos_bottom_taps_y_nose
+    airfoil_pos_bottom_taps_y_tail = tappos.airfoil_pos_bottom_taps_y_tail
 
     def __init__(self):
         """Constructor for the 2D datapoint class. Takes in all measured data for a certain AOA["""
@@ -58,8 +66,13 @@ class twoD_DP:
         self.airfoil_top_taps_cps: np.ndarray = None
         self.airfoil_bottom_taps_cps: np.ndarray = None
 
-        self.airfoil_top_cps_func: sc.interpolate.interp1d = None  # function normalized coordinates from 0-1 instead of 0-100%
-        self.airfoil_bottom_cps_func: sc.interpolate.interp1d = None  # function normalized coordinates from 0-1 instead of 0-100%
+        self.airfoil_top_cps_func_x: sc.interpolate.interp1d = None  # function normalized coordinates from 0-1 instead of 0-100%
+        self.airfoil_bottom_cps_func_x: sc.interpolate.interp1d = None  # function normalized coordinates from 0-1 instead of 0-100%
+
+        self.airfoil_top_cps_func_y_nose: sc.interpolate.interp1d = None  # function normalized coordinates to frac instead of %
+        self.airfoil_top_cps_func_y_tail: sc.interpolate.interp1d = None  # these don't go to 100% as the previous ones
+        self.airfoil_bottom_cps_func_y_nose: sc.interpolate.interp1d = None
+        self.airfoil_bottom_cps_func_y_tail: sc.interpolate.interp1d = None
 
     def init(self):
         """Computes and saves frequently used values for the datapoint that are needed for the class to properly
@@ -88,15 +101,39 @@ class twoD_DP:
             k=2,  # Quadratic interpolation (degree 2)
             ext=3  # Constant extrapolation at the boundaries
         )
-        self.airfoil_top_cps_func = sc.interpolate.interp1d(
-            self.airfoil_pos_top_taps / 100,  # normalized coordinates from 0-1 instead of 0-100%
+        self.airfoil_top_cps_func_x = sc.interpolate.interp1d(
+            self.airfoil_pos_top_taps_x / 100,  # normalized coordinates from 0-1 instead of 0-100%
             self.airfoil_top_taps_cps,
             kind='linear',
             fill_value="extrapolate"
         )
-        self.airfoil_bottom_cps_func = sc.interpolate.interp1d(
-            self.airfoil_pos_bottom_taps / 100,  # normalized coordinates from 0-1 instead of 0-100%
+        self.airfoil_bottom_cps_func_x = sc.interpolate.interp1d(
+            self.airfoil_pos_bottom_taps_x / 100,  # normalized coordinates from 0-1 instead of 0-100%
             self.airfoil_bottom_taps_cps,
+            kind='linear',
+            fill_value="extrapolate"
+        )
+        self.airfoil_top_cps_func_y_nose = sc.interpolate.interp1d(
+            self.airfoil_pos_top_taps_y_nose / 100,  # normalized coordinates to fraction instead of %
+            self.airfoil_top_taps_cps[0:len(self.airfoil_pos_top_taps_y_nose):],
+            kind='linear',
+            fill_value="extrapolate"
+        )
+        self.airfoil_top_cps_func_y_tail = sc.interpolate.interp1d(
+            self.airfoil_pos_top_taps_y_tail / 100,  # normalized coordinates to fraction instead of %
+            self.airfoil_top_taps_cps[len(self.airfoil_pos_top_taps_y_nose)::],
+            kind='linear',
+            fill_value="extrapolate"
+        )
+        self.airfoil_bottom_cps_func_y_nose = sc.interpolate.interp1d(
+            self.airfoil_pos_bottom_taps_y_nose / 100,  # normalized coordinates to fraction instead of %
+            self.airfoil_bottom_taps_cps[0:len(self.airfoil_pos_bottom_taps_y_nose):],
+            kind='linear',
+            fill_value="extrapolate"
+        )
+        self.airfoil_bottom_cps_func_y_tail = sc.interpolate.interp1d(
+            self.airfoil_pos_bottom_taps_y_tail / 100,  # normalized coordinates to fraction instead of %
+            self.airfoil_bottom_taps_cps[len(self.airfoil_pos_bottom_taps_y_nose)::],
             kind='linear',
             fill_value="extrapolate"
         )
@@ -126,58 +163,84 @@ class twoD_DP:
     def get_Re_inf(self):
         return (self.rho * self.V_inf * self.chord) / self.get_mu()
 
-    def get_D(self, mode: str = "rake", neg_noise_reduction: bool = True):
+    def get_D_from_rake(self, neg_noise_reduction: bool = True):
         """mode=rake used for drag data from pressure rake
         mode=surface used for drag from  tap readings"""
-        if mode == "rake":
-            # integration param
-            y_start = 0.0435
-            y_end = max(self.rake_pos_taps_total_p) - 0.0435
+        # integration param
+        y_start = 0.0435
+        y_end = max(self.rake_pos_taps_total_p) - 0.0435
 
-            # internal intermediate functions for the integrands
-            # also act as wrappers to handle the self instance, so expected type of func is passed to sc.integrate
-            def V_at_rake_pos(y):
-                q_inf_at_rake = self.rake_total_p_func(y) - self.rake_static_p_func(y)
-                V_inf_at_rake = np.sqrt((2 * q_inf_at_rake) / self.rho)
-                return V_inf_at_rake
+        # internal intermediate functions for the integrands
+        # also act as wrappers to handle the self instance, so expected type of func is passed to sc.integrate
+        def V_at_rake_pos(y):
+            q_inf_at_rake = self.rake_total_p_func(y) - self.rake_static_p_func(y)
+            V_inf_at_rake = np.sqrt((2 * q_inf_at_rake) / self.rho)
+            return V_inf_at_rake
 
-            def velocity_deficit(y):
-                v_deficit = self.V_inf - V_at_rake_pos(y)
-                if neg_noise_reduction and v_deficit < 0:
-                    v_deficit = 0  # set negative values to 0
-                return v_deficit
+        def velocity_deficit(y):
+            v_deficit = self.V_inf - V_at_rake_pos(y)
+            if neg_noise_reduction and v_deficit < 0:
+                v_deficit = 0  # set negative values to 0
+            return v_deficit
 
-            def inertia_deficit1(y):
-                return V_at_rake_pos(y) * velocity_deficit(y)
+        def inertia_deficit1(y):
+            return V_at_rake_pos(y) * velocity_deficit(y)
 
-            def inertia_deficit2(y):
-                return self.p_inf - self.rake_static_p_func(y)
+        def inertia_deficit2(y):
+            return self.p_inf - self.rake_static_p_func(y)
 
-            # use integrate.quadrature instead of .quad as it's better at detecting narrow peaks
-            return self.get_rho() * \
-                sc.integrate.quad(inertia_deficit1, y_start, y_end, limit=int_sub_div_lim, epsabs=int_error_tolerance,
-                                  epsrel=int_error_tolerance)[0]  #+ \
+        # use integrate.quadrature instead of .quad as it's better at detecting narrow peaks
+        return self.get_rho() * \
+            sc.integrate.quad(inertia_deficit1, y_start, y_end, limit=int_sub_div_lim, epsabs=int_error_tolerance,
+                              epsrel=int_error_tolerance)[0]  #+ \
             #sc.integrate.quad(inertia_deficit2, y_start, y_end, limit=int_sub_div_lim,epsabs=int_error_tolerance,epsrel=int_error_tolerance)[0]
-        elif mode == "surface":
-            aoa_rad = mt.radians(self.aoa)
-            return self.get_Cn() * mt.sin(aoa_rad)
 
     def get_Cd(self, mode: str = "rake"):
         """mode=rake used for drag data from pressure rake
         mode=surface used for drag from  tap readings"""
         # multiply by b=1, as this is an infinite airfoil and this is per unit span
-        S = self.chord * 1
-        return self.get_D(mode) / (self.q_inf * S)
+        if mode == "rake":
+            S = self.chord * 1
+            return self.get_D_from_rake() / (self.q_inf * S)
+        else:
+            aoa_rad = mt.radians(self.aoa)
+            return self.get_Cn() * mt.sin(aoa_rad) + self.get_Ct() * mt.cos(aoa_rad)
 
     def get_Cn(self):
         def CP_bottom_minus_top_dif(x):
-            return self.airfoil_bottom_cps_func(x) - self.airfoil_top_cps_func(x)
+            return self.airfoil_bottom_cps_func_x(x) - self.airfoil_top_cps_func_x(x)
 
         return sc.integrate.quad(CP_bottom_minus_top_dif, 0, 1, limit=int_sub_div_lim)[0]
 
+    def get_Ct(self):
+        # define integration bounds
+        start = 0
+        top_max_camber = float(self.airfoil_pos_top_taps_y_nose[-1] / 100)  # normalize from to y/c fraction from %
+        bottom_max_camber = float(
+            self.airfoil_pos_bottom_taps_y_nose[-1] / 100)  # normalize from to y/c fraction from %
+
+        # wrap scipy interpolated functions because integrate doesn't like them for some reason
+        def top_nose(y):
+            return self.airfoil_top_cps_func_y_nose(y)
+
+        def top_tail(y):
+            return self.airfoil_top_cps_func_y_tail(y)
+
+        def bottom_nose(y):
+            return self.airfoil_bottom_cps_func_y_nose(y)
+
+        def bottom_tail(y):
+            return self.airfoil_bottom_cps_func_y_tail(y)
+
+        top_nose_contribution = + sc.integrate.quad(top_nose, 0, top_max_camber, limit=int_sub_div_lim)[0]
+        top_tail_contribution = - sc.integrate.quad(top_tail, 0, top_max_camber, limit=int_sub_div_lim)[0]
+        bottom_nose_contribution = + sc.integrate.quad(bottom_nose, 0, bottom_max_camber, limit=int_sub_div_lim)[0]
+        bottom_tail_contribution = - sc.integrate.quad(bottom_tail, 0, bottom_max_camber, limit=int_sub_div_lim)[0]
+        return top_nose_contribution + top_tail_contribution + bottom_nose_contribution + bottom_tail_contribution
+
     def get_Cm_LE(self):
         def del_moment_contribution(x):
-            return x * (self.airfoil_top_cps_func(x) - self.airfoil_bottom_cps_func(x))
+            return x * (self.airfoil_top_cps_func_x(x) - self.airfoil_bottom_cps_func_x(x))
 
         return sc.integrate.quad(del_moment_contribution, 0, 1, limit=int_sub_div_lim)[0]
 
@@ -196,14 +259,14 @@ class twoD_DP:
                     mt.cos(aoa_rad) + (mt.sin(aoa_rad) ** 2) / mt.cos(aoa_rad)) - self.get_Cd() * mt.tan(
                 aoa_rad)
         elif mode == "surface":
-            return self.get_Cn() * mt.cos(aoa_rad)
+            return self.get_Cn() * mt.cos(aoa_rad) - self.get_Ct() * mt.sin(aoa_rad)
 
     def plot_pressures(self, save=False):
         """save = True/False to save or not"""
         plt.figure(figsize=(7.8, 6))
         # Plot top side pressures
         plt.plot(
-            self.airfoil_pos_top_taps,
+            self.airfoil_pos_top_taps_x,
             self.airfoil_top_p_taps,
             color="red",
             marker='.',
@@ -213,7 +276,7 @@ class twoD_DP:
         )
         # Plot bottom side pressures
         plt.plot(
-            self.airfoil_pos_bottom_taps,
+            self.airfoil_pos_bottom_taps_x,
             self.airfoil_bottom_p_taps,
             color="green",
             marker='s',
@@ -254,7 +317,7 @@ class twoD_DP:
         plt.grid(True, linestyle='--', alpha=0.6)
         if save:
             os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
-            file_path = os.path.join(plt_save_directory, f"2D_Cp_AOA_{self.aoa}.png")
+            file_path = os.path.join(plt_save_directory, f"2D_pressures_AOA_{self.aoa}.png")
             plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
         # Display the plot, after saving it
         plt.show()
@@ -266,7 +329,7 @@ class twoD_DP:
         plt.figure(figsize=(7.8, 6))
         # Plot top side pressures
         plt.plot(
-            self.airfoil_pos_top_taps,
+            self.airfoil_pos_top_taps_x,
             self.airfoil_top_taps_cps,
             color="red",
             marker='.',
@@ -276,7 +339,7 @@ class twoD_DP:
         )
         # Plot bottom side pressures
         plt.plot(
-            self.airfoil_pos_bottom_taps,
+            self.airfoil_pos_bottom_taps_x,
             self.airfoil_bottom_taps_cps,
             color="green",
             marker='s',
@@ -502,7 +565,7 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
         plt.plot(
             AOA_s2,
             Cl_s2,
-            color="yellow",
+            color="green",
             marker='.',
             label=r"$\alpha$ vs $C_l$ hysteresis",
             markersize=plt_circle_marker_size
@@ -559,7 +622,8 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
 
 def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = False, color_split: int = -1):
     """mode=rake used for drag data from pressure rake
-    made=surface used for drag from  tap readings
+    mode=surface used for drag from  tap readings
+    mode=compare used to compare drag from rake and surface taps
     save = True/False to save or not
     color_split = array index for datapoints from which to plot in different color for example for hysteresis
     if set to -1 it's just one color"""
@@ -591,7 +655,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
         plt.plot(
             Cd_s2,
             Cl_s2,
-            color="yellow",
+            color="green",
             marker='.',
             markersize=plt_circle_marker_size,
             label=r"$C_l$ vs $C_d$ hysteresis"
@@ -618,7 +682,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
     plt.grid(True, linestyle=':', color='gray', linewidth=0.5, alpha=0.5, which='minor', axis='both')
     # saving
     if save:
-        path = f"2D_Cl-alpha_plot"
+        path = f"2D_Cd-Cl_plot"
         if mode == "surface":
             path += "_from_SURFACE_readings_only"
         if color_split > 0:
