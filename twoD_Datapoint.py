@@ -2,13 +2,14 @@ import os
 import math as mt
 import scipy as sc
 import numpy as np
+from itertools import cycle
 import matplotlib.pyplot as plt
 
 import twoD_Tap_Pos_Data_Reader as tappos
 
 # integration quality parameter
-int_sub_div_lim: int = 100  # Increase the maximum sc.integrate integration quality
-int_error_tolerance = 1e-6  # Increases sc.integrate integration quality by making it take more samples
+int_sub_div_lim: int = 1000  # Increase the maximum sc.integrate integration quality
+int_error_tolerance = 1e-8  # Increases sc.integrate integration quality by making it take more samples
 
 #plotting constants
 plt_line_width = 1
@@ -190,18 +191,18 @@ class twoD_DP:
         y_start = 0.0
         y_end = max(self.rake_pos_taps_total_p)
 
-        # # Find exact location where to integrate
-        # Sample_definition = 500
-        # v_deficit_threshold = 0.  # small threshold to make sure small positive deficits don't have a huge impact
-        # y_array = np.linspace(y_start, y_end, Sample_definition)
-        # for i in y_array:
-        #     if velocity_deficit(i) > v_deficit_threshold:
-        #         y_start = i
-        #         break
-        # for i in y_array:
-        #     if velocity_deficit(y_end - i) > v_deficit_threshold:
-        #         y_end = y_end - i
-        #         break
+        # Find exact location where to integrate
+        Sample_definition = 1000
+        v_deficit_threshold = 0  # small threshold to make sure small positive deficits don't have a huge impact
+        y_array = np.linspace(y_start, y_end, Sample_definition)
+        for i in y_array:
+            if velocity_deficit(i) > v_deficit_threshold:
+                y_start = i
+                break
+        for i in y_array:
+            if velocity_deficit(y_end - i) > v_deficit_threshold:
+                y_end = y_end - i
+                break
 
         print(self.aoa, " ", y_start, " ", y_end)
 
@@ -415,7 +416,7 @@ class twoD_DP:
         plt.show()
         plt.close()  # Close the figure to free memory
 
-    def plot_Velocity_at_rake(self, save: bool = False):
+    def plot_rake_velocity_profile(self, save: bool = False):
         V_at_rake = []
         for y in self.rake_pos_taps_total_p:
             q_inf_at_rake = self.rake_total_p_func(y) - self.rake_static_p_func(y)
@@ -562,6 +563,7 @@ class twoD_DP:
             self.rake_pos_taps_static_p,
             p_static_deficit,
             color="blue",
+            linewidth = plt_line_width,
             marker='s',
             markersize=plt_square_marker_size,
             label="Static p deficit (blue)"
@@ -638,6 +640,7 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
         Cl_s,
         color="blue",
         marker='.',
+        linewidth=plt_line_width,
         label=r"$\alpha$ vs $C_l$",
         markersize=plt_circle_marker_size
     )
@@ -646,15 +649,18 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
             AOA_s2,
             Cl_s2,
             color="green",
-            marker='.',
+            marker='s',
+            linewidth=plt_line_width,
             label=r"$\alpha$ vs $C_l$ hysteresis",
-            markersize=plt_circle_marker_size
+            markersize=plt_square_marker_size
         )
     if mode == "compare":
         plt.plot(
             AOA_s,
             Cl_s,
-            color="blue",
+            color="red",
+            linestyle='--',  # Dashed line
+            linewidth=plt_line_width,
             marker='s',
             label=r"$\alpha$ vs $C_l$ from surface p",
             markersize=plt_square_marker_size
@@ -663,7 +669,9 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
             plt.plot(
                 AOA_s2,
                 Cl_s2,
-                color="green",
+                color="magenta",
+                linestyle='--',  # Dashed line
+                linewidth = plt_line_width,
                 marker='s',
                 label=r"$\alpha$ vs $C_l$ hysteresis from surface p",
                 markersize=plt_square_marker_size
@@ -760,6 +768,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
         Cl_s,
         color="blue",
         marker='.',
+        linewidth=plt_line_width,
         markersize=plt_circle_marker_size,
         label=r"$C_l$ vs $C_d$"
     )
@@ -769,6 +778,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
             Cl_s2,
             color="green",
             marker='.',
+            linewidth=plt_line_width,
             markersize=plt_circle_marker_size,
             label=r"$C_l$ vs $C_d$ hysteresis"
         )
@@ -790,6 +800,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
             color="red",
             linestyle='--',  # Dashed line
             marker='s',
+            linewidth=plt_line_width,
             markersize=plt_square_marker_size,
             label=r"$C_l$ vs $C_d $ from surface p"
         )
@@ -800,6 +811,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
                 color="magenta",
                 linestyle='--',  # Dashed line
                 marker='s',
+                linewidth = plt_line_width,
                 markersize=plt_square_marker_size,
                 label=r"$C_l$ vs $C_d$ hysteresis from surface p"
             )
@@ -871,6 +883,7 @@ def plot_Cm_AOA_curve(datapoints: list[twoD_DP], mode="quarter", save: bool = Fa
         Cm_s,
         color="blue",
         marker='.',
+        linewidth=plt_line_width,
         markersize=plt_circle_marker_size,
         label=label
     )
@@ -922,6 +935,7 @@ def plot_Xcp_AOA_curve(datapoints: list[twoD_DP], save: bool = False):
         Xcp_s,
         color="blue",
         marker='.',
+        linewidth=plt_line_width,
         label=r"$\alpha$ vs $X_{Cp}$",
         markersize=plt_circle_marker_size
     )
@@ -947,6 +961,59 @@ def plot_Xcp_AOA_curve(datapoints: list[twoD_DP], save: bool = False):
         os.makedirs(plt_save_directory, exist_ok=True)  # Ensure the directory exists
         file_path = os.path.join(plt_save_directory, f"2D_Xcp-alpha_plot.png")
         plt.savefig(file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+    # Display the plot, after saving it
+    plt.show()
+    plt.close()  # Close the figure to free memory
+
+def plot_multiple_velocity_profiles(datapoints: list[twoD_DP], save: bool = False):
+    # plot the velocities at the rake
+    plt.figure(figsize=(7.8, 6))
+    # different colors for the different graphs, cycle back in case we have more than 10
+    colors = cycle([
+        'red', 'blue', 'green', 'purple', 'orange', 'cyan', 'magenta',
+        'brown', 'lime', 'pink', 'teal', 'gold', 'navy', 'olive', 'gray'
+    ])
+    # obtain and plot velocity profiles for the different datapoints
+    Re_num_s = np.array([datPt.get_Re_inf() for datPt in datapoints])
+    aos_s_str = "AOAs_"
+    for datPt in datapoints:
+        V_at_rake = []
+        for y in datPt.rake_pos_taps_total_p:
+            q_inf_at_rake = datPt.rake_total_p_func(y) - datPt.rake_static_p_func(y)
+            V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / datPt.rho)
+            V_at_rake.append(V_inf_at_rake)
+        aos_s_str += (str(datPt.aoa) + "_")
+        color = next(colors)
+        plt.plot(
+            datPt.rake_pos_taps_total_p,
+            V_at_rake,
+            color=color,
+            marker='s',
+            label=rf'u_1 $\alpha$ = {datPt.aoa}° ({color})',
+            linewidth=plt_line_width,
+            markersize=plt_square_marker_size,
+        )
+    # Display the average reynolds number in the bottom-left corner
+    Re_avg = sum(Re_num_s) / len(Re_num_s)
+    plt.text(
+        0.98, 0.05,
+        f"Re = {Re_avg:.2e}",  # format in scientific notation
+        transform=plt.gca().transAxes,
+        fontsize=plt_text_font_size,
+        horizontalalignment='right'
+    )
+    # label the plot
+    plt.legend(fontsize=plt_legend_font_size)
+    plt.xlabel("Position along the rake [m]", fontsize=plt_axis_font_size)
+    plt.ylabel(r"Velocity at rake $u_1$ [m/s]$", fontsize=plt_axis_font_size)
+    # Make a grid in the background for better readability
+    plt.grid(True, linestyle='--', alpha=0.6)
+    # saving
+    if save:
+        path = "2D_multiple_rake_velocity_profiles"+aos_s_str+".png"
+        os.makedirs("Plots", exist_ok=True)  # Ensure the directory exists
+        full_file_path = os.path.join(plt_save_directory, path)
+        plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
     # Display the plot, after saving it
     plt.show()
     plt.close()  # Close the figure to free memory
