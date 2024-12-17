@@ -163,12 +163,9 @@ class twoD_DP:
     def get_Re_inf(self):
         return (self.rho * self.V_inf * self.chord) / self.get_mu()
 
-    def get_D_from_rake(self, neg_noise_reduction: bool = True):
+    def get_D_from_rake(self):
         """mode=rake used for drag data from pressure rake
         mode=surface used for drag from  tap readings"""
-        # integration param
-        y_start = 0.0435
-        y_end = max(self.rake_pos_taps_total_p) - 0.0435
 
         # internal intermediate functions for the integrands
         # also act as wrappers to handle the self instance, so expected type of func is passed to sc.integrate
@@ -179,7 +176,7 @@ class twoD_DP:
 
         def velocity_deficit(y):
             v_deficit = self.V_inf - V_at_rake_pos(y)
-            if neg_noise_reduction and v_deficit < 0:
+            if v_deficit < 0:
                 v_deficit = 0  # set negative values to 0
             return v_deficit
 
@@ -189,11 +186,31 @@ class twoD_DP:
         def inertia_deficit2(y):
             return self.p_inf - self.rake_static_p_func(y)
 
+        # integration param. Integrate only behind the airfoil where there is the deficit
+        y_start = 0.0
+        y_end = max(self.rake_pos_taps_total_p)
+
+        # # Find exact location where to integrate
+        # Sample_definition = 500
+        # v_deficit_threshold = 0.  # small threshold to make sure small positive deficits don't have a huge impact
+        # y_array = np.linspace(y_start, y_end, Sample_definition)
+        # for i in y_array:
+        #     if velocity_deficit(i) > v_deficit_threshold:
+        #         y_start = i
+        #         break
+        # for i in y_array:
+        #     if velocity_deficit(y_end - i) > v_deficit_threshold:
+        #         y_end = y_end - i
+        #         break
+
+        print(self.aoa, " ", y_start, " ", y_end)
+
         # use integrate.quadrature instead of .quad as it's better at detecting narrow peaks
         return self.get_rho() * \
             sc.integrate.quad(inertia_deficit1, y_start, y_end, limit=int_sub_div_lim, epsabs=int_error_tolerance,
-                              epsrel=int_error_tolerance)[0]  #+ \
-            #sc.integrate.quad(inertia_deficit2, y_start, y_end, limit=int_sub_div_lim,epsabs=int_error_tolerance,epsrel=int_error_tolerance)[0]
+                              epsrel=int_error_tolerance)[0] + \
+            sc.integrate.quad(inertia_deficit2, y_start, y_end, limit=int_sub_div_lim, epsabs=int_error_tolerance,
+                              epsrel=int_error_tolerance)[0]
 
     def get_Cd(self, mode: str = "rake"):
         """mode=rake used for drag data from pressure rake
@@ -398,6 +415,56 @@ class twoD_DP:
         plt.show()
         plt.close()  # Close the figure to free memory
 
+    def plot_Velocity_at_rake(self, save: bool = False):
+        V_at_rake = []
+        for y in self.rake_pos_taps_total_p:
+            q_inf_at_rake = self.rake_total_p_func(y) - self.rake_static_p_func(y)
+            V_inf_at_rake = mt.sqrt((2 * q_inf_at_rake) / self.rho)
+            V_at_rake.append(V_inf_at_rake)
+
+        # plot the velocity at the rake
+        plt.figure(figsize=(7.8, 6))
+        plt.plot(
+            self.rake_pos_taps_total_p,
+            V_at_rake,
+            color="blue",
+            marker='s',
+            label='Velocity at rake (blue)',
+            linewidth=plt_line_width,
+            markersize=plt_square_marker_size,
+        )
+
+        # Display the AOA in the bottom-right corner
+        plt.text(
+            0.98, 0.10,
+            fr"$\alpha$ = {self.aoa:.2f}°",  # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=plt_text_font_size,
+            horizontalalignment='right'
+        )
+        # Display the reynolds_number in the bottom-right corner
+        plt.text(
+            0.98, 0.05,
+            f"Re = {self.get_Re_inf():.2e}",  # format in scientific notation
+            transform=plt.gca().transAxes,
+            fontsize=plt_text_font_size,
+            horizontalalignment='right'
+        )
+        # label the plot
+        plt.legend(fontsize=plt_legend_font_size)
+        plt.xlabel("Position along the rake [m]", fontsize=plt_axis_font_size)
+        plt.ylabel(r"Velocity at rake $u_1$ [m/s]$", fontsize=plt_axis_font_size)
+        # Make a grid in the background for better readability
+        plt.grid(True, linestyle='--', alpha=0.6)
+        # saving
+        if save:
+            os.makedirs("Plots", exist_ok=True)  # Ensure the directory exists
+            full_file_path = os.path.join(plt_save_directory, f"2D_velocity_at_rake_AOA_{self.aoa}.png")
+            plt.savefig(full_file_path, bbox_inches='tight', pad_inches=plt_save_pad_inches)
+        # Display the plot, after saving it
+        plt.show()
+        plt.close()  # Close the figure to free memory
+
     def plot_Velocity_Deficit(self, mode: str = "fraction", neg_noise_reduction: bool = True, save: bool = False):
         """mode=fraction gives deficit as fraction of Vinf
         mode=actual gives deficit as actual velocity difference in m/s
@@ -534,7 +601,8 @@ class twoD_DP:
 #### Plotting methods for multiple datapoints ####
 def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool = False, color_split: int = -1):
     """mode=rake used for drag data from pressure rake
-    made=surface used for drag from  tap readings
+    mode=surface used for drag from  tap readings
+    mode=compare to compare between surface pressure tap and rake results
     save = True/False to save or not
     color_split = array index for datapoints from which to plot in different color for example for hysteresis
     if set to -1 it's just one color"""
@@ -542,15 +610,27 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
     Re_num_s = np.array([datPt.get_Re_inf() for datPt in datapoints])
     AOA_s2: np.ndarray = np.array(0)
     Cl_s2: np.ndarray = np.array(0)
-    if color_split < 0:
-        AOA_s = np.array([datPt.aoa for datPt in datapoints])
-        Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
+    if not mode == "compare":
+        if color_split < 0:
+            AOA_s = np.array([datPt.aoa for datPt in datapoints])
+            Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
+        else:
+            AOA_s = np.array([datPt.aoa for datPt in datapoints[:color_split:]])
+            Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints[:color_split:]])
+            # for second color
+            AOA_s2 = np.array([datPt.aoa for datPt in datapoints[color_split::]])
+            Cl_s2 = np.array([datPt.get_Cl(mode) for datPt in datapoints[color_split::]])
     else:
-        AOA_s = np.array([datPt.aoa for datPt in datapoints[:color_split:]])
-        Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints[:color_split:]])
-        # for second color
-        AOA_s2 = np.array([datPt.aoa for datPt in datapoints[color_split::]])
-        Cl_s2 = np.array([datPt.get_Cl(mode) for datPt in datapoints[color_split::]])
+        if color_split < 0:
+            AOA_s = np.array([datPt.aoa for datPt in datapoints])
+            Cl_s = np.array([datPt.get_Cl(mode="rake") for datPt in datapoints])
+        else:
+            AOA_s = np.array([datPt.aoa for datPt in datapoints[:color_split:]])
+            Cl_s = np.array([datPt.get_Cl(mode="rake") for datPt in datapoints[:color_split:]])
+            # for second color
+            AOA_s2 = np.array([datPt.aoa for datPt in datapoints[color_split::]])
+            Cl_s2 = np.array([datPt.get_Cl(mode="rake") for datPt in datapoints[color_split::]])
+
     # plot the Cl-a curve
     plt.figure(figsize=(7.8, 6))
     plt.plot(
@@ -570,6 +650,25 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
             label=r"$\alpha$ vs $C_l$ hysteresis",
             markersize=plt_circle_marker_size
         )
+    if mode == "compare":
+        plt.plot(
+            AOA_s,
+            Cl_s,
+            color="blue",
+            marker='s',
+            label=r"$\alpha$ vs $C_l$ from surface p",
+            markersize=plt_square_marker_size
+        )
+        if color_split > 0:
+            plt.plot(
+                AOA_s2,
+                Cl_s2,
+                color="green",
+                marker='s',
+                label=r"$\alpha$ vs $C_l$ hysteresis from surface p",
+                markersize=plt_square_marker_size
+            )
+
     # Display the maximum CL in the bottom-right corner
     plt.text(
         0.98, 0.15,
@@ -609,6 +708,8 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
         path = f"2D_Cl-alpha_plot"
         if mode == "surface":
             path += "_from_SURFACE_readings_only"
+        if mode == "compare":
+            path += "_comparison_between_rake_and_surface_readings"
         if color_split > 0:
             path += "_hysteresis_included"
         path += ".png"
@@ -631,15 +732,26 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
     Re_num_s = np.array([datPt.get_Re_inf() for datPt in datapoints])
     Cl_s2: np.ndarray = np.array(0)
     Cd_s2: np.ndarray = np.array(0)
-    if color_split < 0:
-        Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
-        Cd_s = np.array([datPt.get_Cd(mode) for datPt in datapoints])
+    if not mode == "compare":
+        if color_split < 0:
+            Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints])
+            Cd_s = np.array([datPt.get_Cd(mode) for datPt in datapoints])
+        else:
+            Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints[:color_split:]])
+            Cd_s = np.array([datPt.get_Cd(mode) for datPt in datapoints[:color_split:]])
+            # for second color
+            Cl_s2 = np.array([datPt.get_Cl(mode) for datPt in datapoints[color_split::]])
+            Cd_s2 = np.array([datPt.get_Cd(mode) for datPt in datapoints[color_split::]])
     else:
-        Cl_s = np.array([datPt.get_Cl(mode) for datPt in datapoints[:color_split:]])
-        Cd_s = np.array([datPt.get_Cd(mode) for datPt in datapoints[:color_split:]])
-        # for second color
-        Cl_s2 = np.array([datPt.get_Cl(mode) for datPt in datapoints[color_split::]])
-        Cd_s2 = np.array([datPt.get_Cd(mode) for datPt in datapoints[color_split::]])
+        if color_split < 0:
+            Cl_s = np.array([datPt.get_Cl(mode="rake") for datPt in datapoints])
+            Cd_s = np.array([datPt.get_Cd(mode="rake") for datPt in datapoints])
+        else:
+            Cl_s = np.array([datPt.get_Cl(mode="rake") for datPt in datapoints[:color_split:]])
+            Cd_s = np.array([datPt.get_Cd(mode="rake") for datPt in datapoints[:color_split:]])
+            # for second color
+            Cl_s2 = np.array([datPt.get_Cl(mode="rake") for datPt in datapoints[color_split::]])
+            Cd_s2 = np.array([datPt.get_Cd(mode="rake") for datPt in datapoints[color_split::]])
 
     # plot the Cl-Cd curve
     plt.figure(figsize=(7.8, 6))
@@ -660,6 +772,38 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
             markersize=plt_circle_marker_size,
             label=r"$C_l$ vs $C_d$ hysteresis"
         )
+
+    # if a comparison plot is wanted, obtain the data again but for pressure drag only
+    if mode == "compare":
+        if color_split < 0:
+            Cl_s = np.array([datPt.get_Cl(mode="surface") for datPt in datapoints])
+            Cd_s = np.array([datPt.get_Cd(mode="surface") for datPt in datapoints])
+        else:
+            Cl_s = np.array([datPt.get_Cl(mode="surface") for datPt in datapoints[:color_split:]])
+            Cd_s = np.array([datPt.get_Cd(mode="surface") for datPt in datapoints[:color_split:]])
+            # for second color
+            Cl_s2 = np.array([datPt.get_Cl(mode="surface") for datPt in datapoints[color_split::]])
+            Cd_s2 = np.array([datPt.get_Cd(mode="surface") for datPt in datapoints[color_split::]])
+        plt.plot(
+            Cd_s,
+            Cl_s,
+            color="red",
+            linestyle='--',  # Dashed line
+            marker='s',
+            markersize=plt_square_marker_size,
+            label=r"$C_l$ vs $C_d $ from surface p"
+        )
+        if color_split > 0:
+            plt.plot(
+                Cd_s2,
+                Cl_s2,
+                color="magenta",
+                linestyle='--',  # Dashed line
+                marker='s',
+                markersize=plt_square_marker_size,
+                label=r"$C_l$ vs $C_d$ hysteresis from surface p"
+            )
+
     # Display the average reynolds number in the bottom-right corner
     Re_avg = sum(Re_num_s) / len(Re_num_s)
     plt.text(
@@ -677,7 +821,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
     plt.grid(True, linestyle='--', color='gray', alpha=0.6)
     # Minor grid
     plt.minorticks_on()  # Enable minor grid
-    plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.002))  # Minor grid spacing for x-axis
+    plt.gca().xaxis.set_minor_locator(plt.MultipleLocator(0.01))  # Minor grid spacing for x-axis
     plt.gca().yaxis.set_minor_locator(plt.MultipleLocator(0.05))  # Minor grid spacing for y-axis
     plt.grid(True, linestyle=':', color='gray', linewidth=0.5, alpha=0.5, which='minor', axis='both')
     # saving
@@ -685,6 +829,8 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
         path = f"2D_Cd-Cl_plot"
         if mode == "surface":
             path += "_from_SURFACE_readings_only"
+        if mode == "compare":
+            path += "_comparison_between_rake_and_surface_readings"
         if color_split > 0:
             path += "_hysteresis_included"
         path += ".png"

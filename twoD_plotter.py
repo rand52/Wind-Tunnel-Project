@@ -1,7 +1,9 @@
 from twoD_Data_Reader import datapoints
 import twoD_Datapoint as dp
 
-# for i in datapoints:
+
+#for i in datapoints:
+#     i.plot_Velocity_at_rake()
 #      i.plot_pressures()
 #      i.plot_Cp()
 #      i.plot_Velocity_Deficit()
@@ -13,7 +15,7 @@ import twoD_Datapoint as dp
 # dp.plot_CL_AOA_curve(datapoints[0:39:]) # Cl-a plot actual
 # dp.plot_CL_AOA_curve(datapoints,color_split= 39) # # Cl-a plot hysteresis values included
 
-dp.plot_drag_polar(datapoints[0:39:], mode="surface") # Cd-Cl plot form surface taps only
+# dp.plot_drag_polar(datapoints[0:39:], mode="compare") # Cd-Cl plot form surface taps only
 # dp.plot_drag_polar(datapoints[0:39:]) # Cd-Cl plot actual
 # dp.plot_drag_polar(datapoints,color_split= 39) # Cd-Cl plot hysteresis values included
 
