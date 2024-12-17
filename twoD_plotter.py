@@ -1,6 +1,7 @@
 from twoD_Data_Reader import datapoints
 import twoD_Datapoint as dp
 
+# uncomment what you want to plot
 
 #for i in datapoints:
 #     i.plot_Velocity_at_rake()
