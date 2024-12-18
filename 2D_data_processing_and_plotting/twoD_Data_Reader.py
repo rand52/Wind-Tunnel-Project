@@ -31,7 +31,7 @@ for row in df.values:
     datPt.rho_st_ch = row[7]
     # get the test section data from the pitot tube measured wrt p_atm
     datPt.p_total_inf = row[104] + datPt.p_atm
-    # INVALID DATAPOINT datPt.p_static_inf = row[117] + datPt.p_atm
+    datPt.p_static_inf = row[117] + datPt.p_atm
 
     # Following data is given as pressure difference
     datPt.airfoil_top_p_taps = row[8:33:] + datPt.p_atm # P001-P025

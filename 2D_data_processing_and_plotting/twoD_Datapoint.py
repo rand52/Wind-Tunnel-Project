@@ -47,7 +47,9 @@ class twoD_DP:
         # P97 is the total pressure measured in wind tunnel by pitot tube and is accurate
         # P110 is static pressure measured by the pitot tube which is disturbed and isn't accurate and shouldn't be used
         self.p_total_inf = None  # Total pressure in test section from pitot tube
-        #INVALID DATAPOINT self.p_static_inf = None # Static pressure in test section from pitot tube
+        ### Do not use below datapoint - inacurate
+        self.p_static_inf = None # Static pressure in test section from pitot tube
+        ### Do not use above datapoint - inacurate
         self.rho_st_ch: float = None  # measured rho is stag ch
 
         self.airfoil_top_p_taps: np.ndarray = None  # P001-P025
@@ -204,7 +206,7 @@ class twoD_DP:
                 y_end = y_end - i
                 break
 
-        print(self.aoa, " ", y_start, " ", y_end)
+        # print(self.aoa, " ", y_start, " ", y_end)
 
         # use integrate.quadrature instead of .quad as it's better at detecting narrow peaks
         return self.get_rho() * \

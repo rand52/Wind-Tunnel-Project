@@ -135,5 +135,7 @@ for col in sheet_data.columns:
         datapoints.append(datPt)  # after a datapoint is read append it
     c += 1
 
+# add save=True to save a plot. For example
+# datapoints[2].plot_Cp(save=True)
 for i in datapoints:
     i.plot_Cp()

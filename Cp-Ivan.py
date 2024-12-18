@@ -1,11 +1,9 @@
-import numpy as np
 import pandas as pd
-import scipy as sc
 
 import twoD_Datapoint as dp
 
 # Load the Excel file
-file_path = "SLT practical coordinates.xlsx"
+file_path = "2D_data_processing_and_plotting/SLT practical coordinates.xlsx"
 df = pd.read_excel(file_path)
 
 # Specify the column name
