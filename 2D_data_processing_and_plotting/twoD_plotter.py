@@ -20,13 +20,13 @@ import twoD_Datapoint as dp
 
 # dp.plot_CL_AOA_curve(datapoints[0:39:],mode="surface") # Cl-a plot form surface taps only
 # dp.plot_CL_AOA_curve(datapoints[0:39:]) # Cl-a plot actual
-# dp.plot_CL_AOA_curve(datapoints[0:39:],mode="compare",save=True) # compare from wake rake and from pressure taps
+# dp.plot_CL_AOA_curve(datapoints[0:39:],mode="compare") # compare from wake rake and from pressure taps
 # dp.plot_CL_AOA_curve(datapoints,color_split= 39) # Cl-a plot hysteresis values included
 # dp.plot_CL_AOA_curve(datapoints,color_split= 39,mode="compare") # Cl-a plot hysteresis values included and comparison between rake and surface data
 
 # dp.plot_drag_polar(datapoints[0:39:], mode="surface") # Cd-Cl plot form surface taps only
 # dp.plot_drag_polar(datapoints[0:39:],save=True) # Cd-Cl plot actual
-# dp.plot_drag_polar(datapoints[0:39:], mode="compare",save=True) # compare from wake rake and from pressure taps
+# dp.plot_drag_polar(datapoints[0:39:], mode="compare") # compare from wake rake and from pressure taps
 # dp.plot_drag_polar(datapoints,color_split= 39) # Cd-Cl plot hysteresis values included
 # dp.plot_drag_polar(datapoints,color_split= 39, mode="compare") # Cd-Cl plot hysteresis values included and comparison between rake and surface data
 

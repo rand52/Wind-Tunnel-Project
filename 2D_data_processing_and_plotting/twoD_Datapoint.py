@@ -77,12 +77,15 @@ class twoD_DP:
         self.airfoil_bottom_cps_func_y_nose: sc.interpolate.interp1d = None
         self.airfoil_bottom_cps_func_y_tail: sc.interpolate.interp1d = None
 
-    def init(self):
+    def init(self,static_p_correction:bool=True):
         """Computes and saves frequently used values for the datapoint that are needed for the class to properly
         function"""
         # compute frequently used values, order matters
         self.q_inf = self.get_q_inf()
-        self.p_inf = self.get_p_inf()
+        if static_p_correction:
+            self.p_inf = self.get_p_inf()
+        else:
+            self.p_inf = self.p_static_inf
         self.rho = self.get_rho()
         self.V_inf = self.get_V_inf()
 
@@ -166,7 +169,7 @@ class twoD_DP:
     def get_Re_inf(self):
         return (self.rho * self.V_inf * self.chord) / self.get_mu()
 
-    def get_D_from_rake(self):
+    def get_D_from_rake(self,neg_noise_reduction: bool = True):
         """mode=rake used for drag data from pressure rake
         mode=surface used for drag from  tap readings"""
 
@@ -179,7 +182,7 @@ class twoD_DP:
 
         def velocity_deficit(y):
             v_deficit = self.V_inf - V_at_rake_pos(y)
-            if v_deficit < 0:
+            if v_deficit < 0 and neg_noise_reduction:
                 v_deficit = 0  # set negative values to 0
             return v_deficit
 
@@ -193,18 +196,19 @@ class twoD_DP:
         y_start = 0.0
         y_end = max(self.rake_pos_taps_total_p)
 
-        # Find exact location where to integrate
-        Sample_definition = 1000
-        v_deficit_threshold = 0  # small threshold to make sure small positive deficits don't have a huge impact
-        y_array = np.linspace(y_start, y_end, Sample_definition)
-        for i in y_array:
-            if velocity_deficit(i) > v_deficit_threshold:
-                y_start = i
-                break
-        for i in y_array:
-            if velocity_deficit(y_end - i) > v_deficit_threshold:
-                y_end = y_end - i
-                break
+        if neg_noise_reduction:
+            # Find exact location where to integrate
+            Sample_definition = 1000
+            v_deficit_threshold = 0  # small threshold to make sure small positive deficits don't have a huge impact
+            y_array = np.linspace(y_start, y_end, Sample_definition)
+            for i in y_array:
+                if velocity_deficit(i) > v_deficit_threshold:
+                    y_start = i
+                    break
+            for i in y_array:
+                if velocity_deficit(y_end - i) > v_deficit_threshold:
+                    y_end = y_end - i
+                    break
 
         # print(self.aoa, " ", y_start, " ", y_end)
 
@@ -643,7 +647,7 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
         color="blue",
         marker='.',
         linewidth=plt_line_width,
-        label=r"$\alpha$ vs $C_l$",
+        label=r"$\alpha$ vs $C_l$ rake data",
         markersize=plt_circle_marker_size
     )
     if color_split > 0:
@@ -653,7 +657,7 @@ def plot_CL_AOA_curve(datapoints: list[twoD_DP], mode: str = "rake", save: bool 
             color="green",
             marker='s',
             linewidth=plt_line_width,
-            label=r"$\alpha$ vs $C_l$ hysteresis",
+            label=r"$\alpha$ vs $C_l$ rake data hysteresis",
             markersize=plt_square_marker_size
         )
     if mode == "compare":
@@ -772,7 +776,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
         marker='.',
         linewidth=plt_line_width,
         markersize=plt_circle_marker_size,
-        label=r"$C_l$ vs $C_d$"
+        label=r"$C_l$ vs $C_d$ rake data"
     )
     if color_split > 0:
         plt.plot(
@@ -782,7 +786,7 @@ def plot_drag_polar(datapoints: list[twoD_DP], mode: str = "rake", save: bool = 
             marker='.',
             linewidth=plt_line_width,
             markersize=plt_circle_marker_size,
-            label=r"$C_l$ vs $C_d$ hysteresis"
+            label=r"$C_l$ vs $C_d$ rake data hysteresis"
         )
 
     # if a comparison plot is wanted, obtain the data again but for pressure drag only
